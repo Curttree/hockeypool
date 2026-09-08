@@ -111,10 +111,10 @@ function csvField(value) {
 
 function exportSelectedAsCsv() {
   const players = [...selectedPlayers.values()].sort((a, b) => b.points - a.points);
-  const header = ["Player", "Team", "Pos", "GP", "G", "A", "P", "+/-"];
+  const header = ["Player", "Team", "Pos", "GP", "G", "A", "P"];
   const rows = players.map((p) => [
     p.skaterFullName, p.teamAbbrevs, p.positionCode,
-    p.gamesPlayed, p.goals, p.assists, p.points, p.plusMinus,
+    p.gamesPlayed, p.goals, p.assists, p.points,
   ]);
   const csv = [header, ...rows].map((row) => row.map(csvField).join(",")).join("\n");
 
@@ -371,7 +371,6 @@ async function loadPlayers() {
         <td class="num">${p.goals}</td>
         <td class="num">${p.assists}</td>
         <td class="num">${p.points}</td>
-        <td class="num">${p.plusMinus > 0 ? "+" + p.plusMinus : p.plusMinus}</td>
       `;
       tr.querySelector(".select-checkbox").addEventListener("change", (e) => {
         toggleSelected(p, e.target.checked);
