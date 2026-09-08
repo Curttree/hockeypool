@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tremblay Hockey Pool - Player Selector</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Tremblay Hockey Pool - Player Selector</h1>
+    <div class="controls">
+      <label for="season">Season</label>
+      <select id="season"></select>
+      <label for="limit">Per page</label>
+      <select id="limit">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search player name…" autocomplete="off">
+      <label for="max-points">Points ≤</label>
+      <input id="max-points" type="number" min="0" step="1" placeholder="e.g. 50">
+    </div>
+
+    <p id="status">Loading…</p>
+    <div class="table-scroll">
+      <table id="players-table" hidden>
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th class="checkbox-col"></th>
+            <th class="sortable" data-sort="player">Player<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="team">Team<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="pos">Pos<span class="sort-arrow"></span></th>
+            <th class="num sortable" data-sort="gp">GP<span class="sort-arrow"></span></th>
+            <th class="num sortable" data-sort="g">G<span class="sort-arrow"></span></th>
+            <th class="num sortable" data-sort="a">A<span class="sort-arrow"></span></th>
+            <th class="num sortable" data-sort="p">P<span class="sort-arrow"></span></th>
+            <th class="num sortable" data-sort="plusMinus">+/-<span class="sort-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="pager" class="pager" hidden>
+      <button id="prev-page">Prev</button>
+      <span id="page-info"></span>
+      <button id="next-page">Next</button>
+      <span class="page-jump">
+        <label for="page-jump-input">Go to page</label>
+        <input id="page-jump-input" type="number" min="1" step="1">
+        <span id="page-count"></span>
+      </span>
+    </div>
+
+    <section id="selected-section" class="selected-section">
+      <div class="selected-header">
+        <div class="selected-title-group">
+          <h2 id="selected-title">Selected Players (<span id="selected-count">0</span>)</h2>
+          <span id="selected-total" class="selected-total" hidden>Total points: <strong id="selected-total-value">0</strong></span>
+        </div>
+        <div class="selected-actions">
+          <button id="fill-20">Fill to 20 (≤ 1000 pts)</button>
+          <button id="export-csv" hidden>Export CSV</button>
+          <button id="clear-selected" hidden>Clear all</button>
+        </div>
+      </div>
+      <p id="fill-status" class="muted-note" hidden></p>
+      <p id="selected-empty" class="muted-note">No players selected yet — check the box next to a player to add them here.</p>
+      <table id="selected-table" hidden>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Team</th>
+            <th>Pos</th>
+            <th class="num">P</th>
+            <th class="num"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
