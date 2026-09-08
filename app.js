@@ -35,7 +35,7 @@ const FILL_POINTS_CAP = 1000;
 // Fill this in with your deployed Cloudflare Worker's *.workers.dev URL
 // (see worker.js) after publishing to GitHub Pages. Localhost keeps using
 // the relative /api paths served by app.py.
-const WORKER_URL = "https://nhl-points-proxy.YOUR-SUBDOMAIN.workers.dev";
+const WORKER_URL = "https://hockeypool-proxy.curttremblay.workers.dev";
 const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
 const API_BASE = isLocal ? "" : WORKER_URL;
 
