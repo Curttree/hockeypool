@@ -1,12 +1,12 @@
 const statusEl = document.getElementById("status");
-const seasonLabelEl = document.getElementById("season-label");
+const seasonSelect = document.getElementById("season");
 const table = document.getElementById("standings-table");
 const tbody = table.querySelector("tbody");
 
 function formatSeasonLabel(seasonId) {
   const start = seasonId.slice(0, 4);
   const end = seasonId.slice(4);
-  return `${start}-${end} Season`;
+  return `${start}-${end}`;
 }
 
 function computeStandings(teams, roster) {
@@ -30,7 +30,7 @@ function computeStandings(teams, roster) {
     .sort((a, b) => b.score - a.score);
 }
 
-function renderStandings(standings) {
+function renderStandings(standings, season) {
   const topScore = standings.length ? standings[0].score : 0;
 
   tbody.innerHTML = "";
@@ -40,11 +40,12 @@ function renderStandings(standings) {
     const warning = team.missing.length
       ? ` <span class="warn" title="No data found for: ${team.missing.join(", ")}">⚠</span>`
       : "";
+    const teamHref = `team.html?name=${encodeURIComponent(team.name)}&season=${encodeURIComponent(season)}`;
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="num">${i + 1}</td>
-      <td class="team-name"><a href="team.html?name=${encodeURIComponent(team.name)}">${team.name}</a>${warning}</td>
+      <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
       <td class="num score">${team.score.toLocaleString()}</td>
       <td class="num">${behindNext}</td>
       <td class="num">${behind1st}</td>
@@ -56,20 +57,61 @@ function renderStandings(standings) {
   table.hidden = false;
 }
 
-async function init() {
-  statusEl.hidden = false;
-  statusEl.textContent = "Loading standings…";
+function buildSeasonOptions() {
+  const seasons = getPoolSeasons();
+  seasonSelect.innerHTML = seasons
+    .map((s) => `<option value="${s}">${formatSeasonLabel(s)}</option>`)
+    .join("");
+
+  const requestedSeason = new URLSearchParams(location.search).get("season");
+  seasonSelect.value = seasons.includes(requestedSeason) ? requestedSeason : seasons[seasons.length - 1];
+  return seasonSelect.value;
+}
+
+// Polling interval is just how often the UI checks in — the actual
+// network cost is capped by fetchAllPlayersForSeason's own 5-minute
+// cache regardless of how often this fires, so it's cheap to poll often.
+const POLL_INTERVAL_MS = 60 * 1000;
+let currentSeason = null;
+
+async function loadAndRender(isInitialLoad) {
+  if (isInitialLoad) {
+    statusEl.hidden = false;
+    statusEl.textContent = "Loading standings…";
+  }
 
   try {
-    const { season } = await fetch(`${API_BASE}/api/season`).then((r) => r.json());
-    seasonLabelEl.textContent = formatSeasonLabel(season);
-
-    const roster = await fetchAllPlayersForSeason(season);
-    const standings = computeStandings(TEAMS, roster);
-    renderStandings(standings);
+    const roster = await fetchAllPlayersForSeason(currentSeason);
+    const standings = computeStandings(getTeamsForSeason(currentSeason), roster);
+    renderStandings(standings, currentSeason);
   } catch (err) {
-    statusEl.textContent = `Error loading standings: ${err.message}`;
+    // A background poll failing shouldn't disrupt an already-rendered
+    // page — only surface the error if this was the initial load.
+    if (isInitialLoad) statusEl.textContent = `Error loading standings: ${err.message}`;
   }
+}
+
+function startPolling() {
+  setInterval(() => {
+    if (document.visibilityState === "visible") loadAndRender(false);
+  }, POLL_INTERVAL_MS);
+
+  // Catch up immediately when the tab regains focus, rather than
+  // waiting for the next tick.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") loadAndRender(false);
+  });
+}
+
+async function init() {
+  currentSeason = buildSeasonOptions();
+  await loadAndRender(true);
+  startPolling();
+
+  seasonSelect.addEventListener("change", () => {
+    currentSeason = seasonSelect.value;
+    loadAndRender(true);
+  });
 }
 
 init();

@@ -11,8 +11,9 @@ const API_BASE = isLocal ? "" : WORKER_URL;
 
 // In-memory + sessionStorage cache for full-season rosters, so repeated
 // fetches (or a page reload within the same tab) don't re-issue the ~10
-// paginated requests every time for data that's the same all season.
-const ROSTER_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+// paginated requests every time within a short window. Kept short so an
+// in-progress season's standings feel current.
+const ROSTER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const ROSTER_CACHE_KEY_PREFIX = "nhl-points-roster-cache:";
 const rosterCache = new Map();
 
@@ -74,7 +75,7 @@ async function fetchAllPlayersForSeason(season) {
 // change or be blocked without notice, so failures here are handled by
 // just showing no injury data rather than breaking the page.
 const ESPN_INJURIES_URL = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries";
-const INJURY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const INJURY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const INJURY_CACHE_KEY = "nhl-points-injury-cache";
 
 // Names come from two different providers (NHL's API and ESPN's), so

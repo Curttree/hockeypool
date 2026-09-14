@@ -1,5 +1,6 @@
 const statusEl = document.getElementById("status");
 const seasonLabelEl = document.getElementById("season-label");
+const backLinkEl = document.getElementById("back-link");
 const titleEl = document.getElementById("team-title");
 const table = document.getElementById("team-table");
 const tbody = table.querySelector("tbody");
@@ -8,7 +9,7 @@ const tfoot = table.querySelector("tfoot");
 function formatSeasonLabel(seasonId) {
   const start = seasonId.slice(0, 4);
   const end = seasonId.slice(4);
-  return `${start}-${end} Season`;
+  return `${start}-${end}`;
 }
 
 // "Connor McDavid" -> "McDavid, C" (matches the pool site's roster format)
@@ -18,29 +19,54 @@ function shortName(fullName, lastName) {
   return `${lastName}, ${initial}`;
 }
 
-function init() {
-  const teamName = new URLSearchParams(location.search).get("name") || "";
-  const team = findTeamByName(teamName);
+// Polling interval is just how often the UI checks in — the actual
+// network cost is capped by fetchAllPlayersForSeason's/fetchInjuries's
+// own 5-minute caches regardless of how often this fires, so it's cheap
+// to poll often.
+const POLL_INTERVAL_MS = 60 * 1000;
+let currentSeason = null;
 
+async function init() {
+  const params = new URLSearchParams(location.search);
+  const teamName = params.get("name") || "";
+
+  const seasons = getPoolSeasons();
+  const requestedSeason = params.get("season");
+  currentSeason = seasons.includes(requestedSeason) ? requestedSeason : seasons[seasons.length - 1];
+
+  const team = findTeamByName(currentSeason, teamName);
   if (!team) {
     statusEl.textContent = teamName
-      ? `No team found named "${teamName}".`
+      ? `No team found named "${teamName}" in the ${formatSeasonLabel(currentSeason)} season.`
       : "No team specified.";
     return;
   }
 
   titleEl.textContent = team.name;
   document.title = `Tremblay Hockey Pool - ${team.name}`;
-  loadRoster(team);
+  seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
+  backLinkEl.href = `/?season=${encodeURIComponent(currentSeason)}`;
+
+  await loadAndRender(team, true);
+  startPolling(team);
 }
 
-async function loadRoster(team) {
-  try {
-    const { season } = await fetch(`${API_BASE}/api/season`).then((r) => r.json());
-    seasonLabelEl.textContent = formatSeasonLabel(season);
+function startPolling(team) {
+  setInterval(() => {
+    if (document.visibilityState === "visible") loadAndRender(team, false);
+  }, POLL_INTERVAL_MS);
 
+  // Catch up immediately when the tab regains focus, rather than
+  // waiting for the next tick.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") loadAndRender(team, false);
+  });
+}
+
+async function loadAndRender(team, isInitialLoad) {
+  try {
     const [roster, injuries] = await Promise.all([
-      fetchAllPlayersForSeason(season),
+      fetchAllPlayersForSeason(currentSeason),
       fetchInjuries(),
     ]);
     const pointsByName = new Map(roster.map((p) => [p.skaterFullName.toLowerCase(), p]));
@@ -60,7 +86,9 @@ async function loadRoster(team) {
 
     renderTeam(rows);
   } catch (err) {
-    statusEl.textContent = `Error loading team: ${err.message}`;
+    // A background poll failing shouldn't disrupt an already-rendered
+    // page — only surface the error if this was the initial load.
+    if (isInitialLoad) statusEl.textContent = `Error loading team: ${err.message}`;
   }
 }
 
