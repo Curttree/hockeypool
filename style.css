@@ -261,6 +261,20 @@ tbody tr:hover { background: #232838; }
 #players-table tbody td:nth-child(3) { font-weight: 600; }
 #players-table tbody td:nth-child(9) { color: var(--accent); font-weight: 700; }
 
+.team-logo-col {
+  width: 28px;
+  padding-left: 14px;
+  padding-right: 0;
+}
+
+.team-logo {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .team-name { font-weight: 600; }
 .team-name a { color: var(--text); text-decoration: none; }
 .team-name a:hover { color: var(--accent); text-decoration: underline; }
@@ -401,6 +415,24 @@ tbody tr:hover { background: #232838; }
 .muted-note {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.chart-section {
+  margin-top: 32px;
+}
+
+.chart-section h2 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.chart-container {
+  position: relative;
+  height: 420px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 #fill-status {

@@ -32,6 +32,7 @@
         <thead>
           <tr>
             <th class="num">Rank</th>
+            <th class="team-logo-col"></th>
             <th>Team</th>
             <th class="num">Score</th>
             <th class="num">Behind Next</th>
@@ -41,10 +42,31 @@
         <tbody></tbody>
       </table>
     </div>
+
+    <section class="chart-section">
+      <div class="selected-header">
+        <h2>Standings Over Time</h2>
+        <div class="controls">
+          <label for="chart-range">Range</label>
+          <select id="chart-range">
+            <option value="week">1 Week</option>
+            <option value="month">1 Month</option>
+            <option value="season" selected>Season</option>
+          </select>
+        </div>
+      </div>
+      <p id="chart-status" class="muted-note">Loading history…</p>
+      <div class="chart-container">
+        <canvas id="standings-chart" hidden></canvas>
+      </div>
+      <p id="chart-hint" class="muted-note" hidden>Click a team in the legend to isolate its line — click it again to restore all.</p>
+    </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="common.js"></script>
   <script src="teams.js"></script>
   <script src="standings.js"></script>
+  <script src="history.js"></script>
 </body>
 </html>

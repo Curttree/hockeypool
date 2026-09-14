@@ -65,10 +65,13 @@ function renderStandings(standings, season) {
       ? ` <span class="warn" title="${warningParts.join("; ")}">⚠</span>`
       : "";
     const teamHref = `team.html?name=${encodeURIComponent(team.name)}&season=${encodeURIComponent(season)}`;
+    const logoSrc = getTeamLogo(season, team.name);
+    const logo = logoSrc ? `<img class="team-logo" src="${logoSrc}" alt="" width="28" height="28">` : "";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="num">${i + 1}</td>
+      <td class="team-logo-col">${logo}</td>
       <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
       <td class="num score">${team.score.toLocaleString()}</td>
       <td class="num">${behindNext}</td>

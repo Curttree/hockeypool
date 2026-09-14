@@ -5,7 +5,10 @@
 //   year, so a team can be added or removed just by including/omitting
 //   it. Team names stay stable across years for teams that continue
 //   (they're the lookup key used by team.html's links). Each team has a
-//   display name and a list of players. A player entry is either a
+//   display name, an optional `logo` (path to an image, used as the
+//   marker on that team's most recent point in the "Standings Over
+//   Time" chart — falls back to a plain dot if omitted), and a list of
+//   players. A player entry is either a
 //   plain full-name string, or an object { name, injured, team, position }
 //   — all fields but `name` optional:
 //     - injured: true force-flags them as injured (see below).
@@ -104,6 +107,7 @@ const TEAMS_BY_SEASON = {
     teams: [
       {
         name: "Ice Breakers",
+        logo: "images/ice-breakers.svg",
         players: [
           "Connor McDavid", { name: "Nathan MacKinnon", injured: true }, "Nikita Kucherov", "Macklin Celebrini",
           "Mark Scheifele", "Nick Suzuki", "Martin Necas", "David Pastrnak",
@@ -117,6 +121,7 @@ const TEAMS_BY_SEASON = {
       },
       {
         name: "Blue Line Bandits",
+        logo: "images/blue-line-bandits.svg",
         players: [
           "Artemi Panarin", "Tim Stützle", { name: "Zach Werenski", injured: true }, "Tage Thompson",
           "Mitch Marner", "Sebastian Aho", "William Nylander", "Cale Makar",
@@ -127,6 +132,7 @@ const TEAMS_BY_SEASON = {
       },
       {
         name: "Puck Hogs",
+        logo: "images/puck-hogs.svg",
         players: [
           { name: "Rasmus Dahlin", injured: true }, "Dylan Guenther", "Adrian Kempe", "Juraj Slafkovský",
           "Mark Stone", "Mathew Barzal", "Drake Batherson", "John Tavares",
@@ -138,12 +144,47 @@ const TEAMS_BY_SEASON = {
       {
         // New for 2025-2026, replacing "Slap Shots".
         name: "Grinders",
+        logo: "images/grinders.svg",
         players: [
           { name: "Jordan Staal", injured: true }, "Ilya Mikheyev", "Jamie Benn", "Jake Neighbours",
           "Sean Monahan", "Sean Couturier", "Eeli Tolvanen", "Max Domi",
           "Ryan Poehling", "Morgan Rielly", "Thomas Harley", "John Marino",
           "Parker Kelly", "Blake Coleman", "Ben Kindel", "Fraser Minten",
           "Jean-Gabriel Pageau", "Michael Amadio", "Justin Sourdif", "Linus Karlsson",
+        ],
+      },
+      {
+        // Added just to see how the chart looks with more than 4 lines.
+        name: "Empty Netters",
+        logo: "images/empty-netters.svg",
+        players: [
+          "Ryan Nugent-Hopkins", "Luke Evangelista", "Carter Verhaeghe", "Roman Josi",
+          "Alexander Wennberg", "Josh Morrissey", "Jordan Eberle", "Jake Sanderson",
+          "Mats Zuccarello", "Viktor Arvidsson", "Brad Marchand", "Ryan McLeod",
+          "Jackson Blake", "Adam Fox", "William Eklund", "Vincent Trocheck",
+          "Auston Matthews", "J.T. Miller", "Josh Doan", "Anthony Cirelli",
+        ],
+      },
+      {
+        name: "Hat Trick Heroes",
+        logo: "images/hat-trick-heroes.svg",
+        players: [
+          "Zach Hyman", "Aliaksei Protas", "Joel Eriksson Ek", "Jimmy Snuggerud",
+          "Jack Quinn", "Brock Faber", "Christian Dvorak", "Dylan Holloway",
+          "Owen Tippett", "Matvei Michkov", "Nazem Kadri", "Shayne Gostisbehere",
+          "Chris Kreider", "Matty Beniers", "Brayden Point", "Chandler Stephenson",
+          "Valeri Nichushkin", "Filip Hronek", "Quinton Byfield", "Marcus Johansson",
+        ],
+      },
+      {
+        name: "Odd Man Rush",
+        logo: "images/odd-man-rush.svg",
+        players: [
+          "Tyler Toffoli", "Claude Giroux", "Pavel Buchnevich", "Taylor Hall",
+          "Brock Boeser", "Rickard Rakell", "Artturi Lehkonen", "Elias Lindholm",
+          "Rasmus Andersson", "Noah Dobson", "Vladimir Tarasenko", "John-Jason Peterka",
+          "Noah Cates", "Connor McMichael", "Shane Pinto", "Bobby McMann",
+          "Collin Graf", "Jason Zucker", "Matt Duchene", "Matt Coronato",
         ],
       },
     ],
@@ -175,6 +216,13 @@ function getTradesForSeason(season) {
 
 function findTeamByName(season, name) {
   return getTeamsForSeason(season).find((t) => t.name === name);
+}
+
+// Path to a team's logo image, or null if it doesn't have one — used to
+// mark the most recent point on that team's line in the history chart.
+function getTeamLogo(season, name) {
+  const team = findTeamByName(season, name);
+  return (team && team.logo) || null;
 }
 
 function playerName(entry) {

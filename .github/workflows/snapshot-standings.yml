@@ -1,0 +1,41 @@
+name: Snapshot Standings
+
+on:
+  schedule:
+    # Once daily. GitHub's cron scheduler isn't precise to the minute
+    # (can slip under load) — irrelevant for a once-a-day trend line.
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install script dependencies
+        working-directory: .github/scripts
+        run: npm install
+
+      - name: Install Playwright browser
+        working-directory: .github/scripts
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture standings snapshot
+        working-directory: .github/scripts
+        run: node snapshot-standings.mjs
+
+      - name: Commit snapshot if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/standings-history.json
+          git diff --cached --quiet || git commit -m "Snapshot standings for $(date -u +%Y-%m-%d)"
+          git push

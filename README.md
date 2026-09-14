@@ -10,7 +10,7 @@ browsing/filtering NHL skater stats when drafting.
 
 | File | What it is |
 | --- | --- |
-| `index.html` | Standings — the pool leaderboard, with a season picker |
+| `index.html` | Standings — the pool leaderboard with a season picker, plus a "Standings Over Time" line chart |
 | `team.html` | One team's full roster and per-player stats for a given season |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
@@ -36,13 +36,20 @@ Each year's pool draft is a new entry in `TEAMS_BY_SEASON` inside
 
    ```js
    const TEAMS_BY_SEASON = {
-     "20242025": [ /* ... */ ],
-     "20252026": [ /* ... */ ],
-     "20262027": [
-       { name: "Ice Breakers", players: [ /* that team's 20 draft picks */ ] },
-       { name: "Blue Line Bandits", players: [ /* ... */ ] },
-       // one entry per team playing this season
-     ],
+     "20242025": { teams: [ /* ... */ ], trades: [ /* ... */ ] },
+     "20252026": { teams: [ /* ... */ ], trades: [ /* ... */ ] },
+     "20262027": {
+       teams: [
+         {
+           name: "Ice Breakers",
+           logo: "images/ice-breakers.svg", // optional — see below
+           players: [ /* that team's 20 draft picks */ ],
+         },
+         { name: "Blue Line Bandits", players: [ /* ... */ ] },
+         // one entry per team playing this season
+       ],
+       trades: [], // mid-season trades go here as the year plays out — see below
+     },
    };
    ```
 
@@ -54,13 +61,29 @@ Each year's pool draft is a new entry in `TEAMS_BY_SEASON` inside
    accents (e.g. `"Tim Stützle"`, not an ASCII version). If a name
    doesn't match, nothing breaks — the app shows a small ⚠ next to that
    team with a tooltip naming the player it couldn't find, so typos are
-   easy to spot just by loading the page.
+   easy to spot just by loading the page. If instead the ⚠ says
+   *multiple* players share that name (it happens — two different NHL
+   players can have the exact same name), add `team` and/or `position`
+   to that entry to disambiguate: `{ name: "Elias Pettersson", position: "C" }`.
 
 4. Optional: force-flag a player as injured with
    `{ name: "Player Name", injured: true }` instead of a plain string.
    You normally won't need this — injury status is detected
    automatically (see below) — it's just a fallback for anything the
    feed misses.
+
+5. **Mid-season trades** go in that season's `trades` array — see the
+   comment block above `TEAMS_BY_SEASON` in `teams.js` for the exact
+   format. A trade locks the outgoing player's stats as of the trade
+   date and prorates the incoming player's, without needing to remove
+   anyone from the `players` list. Cap of two trades per team per
+   season isn't enforced in code — just a rule to follow by hand.
+
+6. Optional: give a team a `logo` (a path to an image file, e.g. under
+   `images/`). It's used as the marker on that team's most recent point
+   in the "Standings Over Time" chart, in place of the default dot —
+   any web image format works (PNG/JPG/SVG/etc.), and a missing or
+   broken file just falls back to a plain dot rather than erroring.
 
 That's it — commit and push `teams.js`. Everything else picks the new
 season up automatically:
@@ -84,6 +107,28 @@ Until you add the new season's entry, the Standings page just keeps
 showing the last season you added — nothing errors, it simply goes
 stale until updated.
 
+## Standings history & chart
+
+The "Standings Over Time" line chart on the Standings page reads from
+`data/standings-history.json` — a growing log of daily snapshots, one
+entry per day per season, keyed the same way as `TEAMS_BY_SEASON`.
+
+That file is written automatically by
+`.github/workflows/snapshot-standings.yml`, which runs once a day
+(and can be triggered manually from the Actions tab — "Snapshot
+Standings" → "Run workflow", useful for testing). Rather than
+reimplementing the scoring rules (trades, injuries, disambiguation) a
+second time, the workflow loads the *real* deployed Standings page with
+a headless browser (`.github/scripts/snapshot-standings.mjs`, via
+Playwright) and reads the rendered numbers straight out of the page —
+so there's only ever one place the scoring logic lives. It then commits
+the updated JSON file back to the repo, which GitHub Pages picks up and
+redeploys automatically like any other push.
+
+No action needed from you day-to-day — this just runs in the
+background. A season needs at least two days of snapshots before the
+chart shows a line; until then it shows a placeholder message instead.
+
 ## Architecture notes
 
 - **Backend proxy**: `app.py` (local dev) and `worker.js` (deployed to
@@ -96,3 +141,6 @@ stale until updated.
 - **Live polling**: Standings and team pages auto-refresh every 60
   seconds while the tab is visible — cheap, since the actual network
   fetch only happens when the 5-minute cache above has expired.
+- **Daily snapshots**: see "Standings history & chart" above —
+  a scheduled GitHub Action, not anything running on Cloudflare or
+  GitHub Pages itself (neither can run code on a schedule).
