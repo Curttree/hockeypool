@@ -90,6 +90,7 @@ async function loadAndRender(team, isInitialLoad) {
         name,
         player,
         tradedOut: tradeInfo.tradedOut,
+        tradedIn: tradeInfo.tradedIn,
         ambiguous,
         credited,
         injured: manuallyFlagged || Boolean(liveInjury),
@@ -109,9 +110,12 @@ function renderTeam(rows) {
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, ambiguous, credited }) => {
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited }) => {
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
+    const acquiredBadge = tradedIn
+      ? `<span class="traded-badge" title="Acquired via trade — stats before joining this team don't count">Acquired</span>`
+      : "";
     const tradedBadge = tradedOut
       ? `<span class="traded-badge" title="Traded away — stats locked as of the trade">Traded</span>`
       : "";
@@ -123,7 +127,7 @@ function renderTeam(rows) {
       totalGoals += credited.goals;
       totalAssists += credited.assists;
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon}${tradedBadge}</td>
+        <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}</td>
         <td>${player ? player.teamAbbrevs : "—"}</td>
         <td class="num score">${credited.points}</td>
         <td class="num">${credited.goals}</td>
@@ -134,7 +138,7 @@ function renderTeam(rows) {
         ? "Multiple players share this name — add team/position in teams.js to disambiguate"
         : "No stats found for this player";
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon}${tradedBadge} <span class="warn" title="${warningTitle}">⚠</span></td>
+        <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge} <span class="warn" title="${warningTitle}">⚠</span></td>
         <td>—</td>
         <td class="num score">0</td>
         <td class="num">0</td>

@@ -203,12 +203,14 @@ const EMPTY_STAT_LINE = { points: 0, goals: 0, assists: 0 };
 function getTradeInfo(season, teamName, playerName) {
   let entry = EMPTY_STAT_LINE;
   let exit = null;
+  let tradedIn = false;
 
   getTradesForSeason(season).forEach((trade) => {
     if (trade.team !== teamName) return;
     if (trade.playerIn && trade.playerIn.name === playerName) {
       const { points, goals, assists } = trade.playerIn;
       entry = { points, goals, assists };
+      tradedIn = true;
     }
     if (trade.playerOut && trade.playerOut.name === playerName) {
       const { points, goals, assists } = trade.playerOut;
@@ -216,7 +218,7 @@ function getTradeInfo(season, teamName, playerName) {
     }
   });
 
-  return { entry, exit, tradedOut: exit !== null };
+  return { entry, exit, tradedIn, tradedOut: exit !== null };
 }
 
 // Applies a getTradeInfo() result to a player's live stat line
