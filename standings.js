@@ -9,23 +9,42 @@ function formatSeasonLabel(seasonId) {
   return `${start}-${end}`;
 }
 
-function computeStandings(teams, roster) {
-  const pointsByName = new Map(roster.map((p) => [p.skaterFullName.toLowerCase(), p]));
+function computeStandings(season, teams, roster) {
+  const rosterIndex = buildRosterIndex(roster);
 
   return teams
     .map((team) => {
       let score = 0;
       const missing = [];
+      const ambiguous = [];
       team.players.forEach((entry) => {
         const name = playerName(entry);
-        const player = pointsByName.get(name.toLowerCase());
-        if (player) {
-          score += player.points;
+        const tradeInfo = getTradeInfo(season, team.name, name);
+
+        // A frozen exit snapshot doesn't need a live lookup at all, so
+        // an ambiguous name elsewhere in the league can't affect it.
+        if (tradeInfo.tradedOut) {
+          score += creditedStats(tradeInfo, null).points;
+          return;
+        }
+
+        const { player, ambiguous: isAmbiguous } = resolvePlayer(
+          rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry)
+        );
+
+        if (isAmbiguous) {
+          ambiguous.push(name);
+          return;
+        }
+
+        const credited = creditedStats(tradeInfo, player);
+        if (credited) {
+          score += credited.points;
         } else {
           missing.push(name);
         }
       });
-      return { name: team.name, score, missing };
+      return { name: team.name, score, missing, ambiguous };
     })
     .sort((a, b) => b.score - a.score);
 }
@@ -37,8 +56,13 @@ function renderStandings(standings, season) {
   standings.forEach((team, i) => {
     const behindNext = i === 0 ? "" : (standings[i - 1].score - team.score).toLocaleString();
     const behind1st = i === 0 ? "" : (topScore - team.score).toLocaleString();
-    const warning = team.missing.length
-      ? ` <span class="warn" title="No data found for: ${team.missing.join(", ")}">⚠</span>`
+    const warningParts = [];
+    if (team.missing.length) warningParts.push(`no data found for: ${team.missing.join(", ")}`);
+    if (team.ambiguous.length) {
+      warningParts.push(`multiple players named ${team.ambiguous.join(", ")} — add team/position in teams.js to disambiguate`);
+    }
+    const warning = warningParts.length
+      ? ` <span class="warn" title="${warningParts.join("; ")}">⚠</span>`
       : "";
     const teamHref = `team.html?name=${encodeURIComponent(team.name)}&season=${encodeURIComponent(season)}`;
 
@@ -82,7 +106,7 @@ async function loadAndRender(isInitialLoad) {
 
   try {
     const roster = await fetchAllPlayersForSeason(currentSeason);
-    const standings = computeStandings(getTeamsForSeason(currentSeason), roster);
+    const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster);
     renderStandings(standings, currentSeason);
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered

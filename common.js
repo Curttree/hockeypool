@@ -69,6 +69,46 @@ async function fetchAllPlayersForSeason(season) {
   return all;
 }
 
+// Groups a roster fetch by lowercased full name, so a name shared by
+// more than one player in the league (it happens — e.g. two different
+// "Elias Pettersson"s) can be detected instead of one silently
+// overwriting the other in a plain name->player map.
+function buildRosterIndex(roster) {
+  const index = new Map();
+  roster.forEach((p) => {
+    const key = p.skaterFullName.toLowerCase();
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push(p);
+  });
+  return index;
+}
+
+// Resolves one player by name against a roster index built above.
+// teamHint/positionHint (both optional, e.g. "VAN"/"C" — see teams.js)
+// narrow the match when more than one player shares that name.
+// Returns one of:
+//   { player, ambiguous: false }              - resolved (0 or 1 match)
+//   { player: null, ambiguous: true, candidates } - still >1 match
+function resolvePlayer(rosterIndex, name, teamHint, positionHint) {
+  const candidates = rosterIndex.get(name.toLowerCase()) || [];
+  if (candidates.length <= 1) {
+    return { player: candidates[0] || null, ambiguous: false };
+  }
+
+  let filtered = candidates;
+  if (teamHint) {
+    filtered = filtered.filter((p) => p.teamAbbrevs.split(",").includes(teamHint));
+  }
+  if (positionHint) {
+    filtered = filtered.filter((p) => p.positionCode === positionHint);
+  }
+
+  if (filtered.length === 1) {
+    return { player: filtered[0], ambiguous: false };
+  }
+  return { player: null, ambiguous: true, candidates: filtered.length ? filtered : candidates };
+}
+
 // Live injury status. The NHL's own API has no injury/status field at
 // all (checked the roster and player-landing endpoints), so this uses
 // ESPN's unofficial site API instead — it's undocumented and could

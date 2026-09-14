@@ -284,6 +284,22 @@ tbody tr:hover { background: #232838; }
   vertical-align: middle;
 }
 
+.traded-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--row-alt);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: help;
+  vertical-align: middle;
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 6px;

@@ -69,16 +69,29 @@ async function loadAndRender(team, isInitialLoad) {
       fetchAllPlayersForSeason(currentSeason),
       fetchInjuries(),
     ]);
-    const pointsByName = new Map(roster.map((p) => [p.skaterFullName.toLowerCase(), p]));
+    const rosterIndex = buildRosterIndex(roster);
 
     const rows = team.players.map((entry) => {
       const name = playerName(entry);
-      const player = pointsByName.get(name.toLowerCase());
       const liveInjury = injuries.get(normalizePlayerName(name));
       const manuallyFlagged = playerIsInjured(entry);
+      const tradeInfo = getTradeInfo(currentSeason, team.name, name);
+      const resolved = resolvePlayer(rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry));
+
+      // A frozen exit snapshot doesn't need a live lookup for scoring —
+      // an ambiguous name elsewhere in the league shouldn't block it,
+      // so only treat ambiguity as blocking when we actually need the
+      // live lookup to know their credited stats at all.
+      const ambiguous = !tradeInfo.tradedOut && resolved.ambiguous;
+      const player = resolved.ambiguous ? null : resolved.player;
+      const credited = ambiguous ? null : creditedStats(tradeInfo, player);
+
       return {
         name,
         player,
+        tradedOut: tradeInfo.tradedOut,
+        ambiguous,
+        credited,
         injured: manuallyFlagged || Boolean(liveInjury),
         injuryLabel: liveInjury ? (liveInjury.comment || liveInjury.status) : "Injured",
       };
@@ -96,26 +109,32 @@ function renderTeam(rows) {
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
 
-  rows.forEach(({ name, injured, injuryLabel, player }) => {
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, ambiguous, credited }) => {
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
+    const tradedBadge = tradedOut
+      ? `<span class="traded-badge" title="Traded away — stats locked as of the trade">Traded</span>`
+      : "";
     const displayName = player ? shortName(player.skaterFullName, player.lastName) : name;
 
     const tr = document.createElement("tr");
-    if (player) {
-      totalScore += player.points;
-      totalGoals += player.goals;
-      totalAssists += player.assists;
+    if (credited) {
+      totalScore += credited.points;
+      totalGoals += credited.goals;
+      totalAssists += credited.assists;
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon}</td>
-        <td>${player.teamAbbrevs}</td>
-        <td class="num score">${player.points}</td>
-        <td class="num">${player.goals}</td>
-        <td class="num">${player.assists}</td>
+        <td>${displayName}${injuryIcon}${tradedBadge}</td>
+        <td>${player ? player.teamAbbrevs : "—"}</td>
+        <td class="num score">${credited.points}</td>
+        <td class="num">${credited.goals}</td>
+        <td class="num">${credited.assists}</td>
       `;
     } else {
+      const warningTitle = ambiguous
+        ? "Multiple players share this name — add team/position in teams.js to disambiguate"
+        : "No stats found for this player";
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon} <span class="warn" title="No stats found for this player">⚠</span></td>
+        <td>${displayName}${injuryIcon}${tradedBadge} <span class="warn" title="${warningTitle}">⚠</span></td>
         <td>—</td>
         <td class="num score">0</td>
         <td class="num">0</td>
