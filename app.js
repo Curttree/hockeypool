@@ -32,13 +32,6 @@ const MAX_EXPORT_PLAYERS = 20;
 const FILL_TARGET_COUNT = 20;
 const FILL_POINTS_CAP = 1000;
 
-// Fill this in with your deployed Cloudflare Worker's *.workers.dev URL
-// (see worker.js) after publishing to GitHub Pages. Localhost keeps using
-// the relative /api paths served by app.py.
-const WORKER_URL = "https://hockeypool-proxy.curttremblay.workers.dev";
-const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
-const API_BASE = isLocal ? "" : WORKER_URL;
-
 let start = 0;
 let totalPages = 1;
 let searchDebounce = null;
@@ -145,62 +138,6 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-// In-memory + sessionStorage cache for full-season rosters, so repeated
-// "Fill to 20" clicks (or a page reload within the same tab) don't
-// re-issue the ~10 paginated requests every time for data that's the
-// same all season.
-const ROSTER_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-const ROSTER_CACHE_KEY_PREFIX = "nhl-points-roster-cache:";
-const rosterCache = new Map();
-
-function getCachedRoster(season) {
-  if (rosterCache.has(season)) return rosterCache.get(season);
-  try {
-    const raw = sessionStorage.getItem(ROSTER_CACHE_KEY_PREFIX + season);
-    if (raw) {
-      const { timestamp, players } = JSON.parse(raw);
-      if (Date.now() - timestamp < ROSTER_CACHE_TTL_MS) {
-        rosterCache.set(season, players);
-        return players;
-      }
-    }
-  } catch {
-    // ignore (storage disabled/corrupt)
-  }
-  return null;
-}
-
-function setCachedRoster(season, players) {
-  rosterCache.set(season, players);
-  try {
-    sessionStorage.setItem(ROSTER_CACHE_KEY_PREFIX + season, JSON.stringify({ timestamp: Date.now(), players }));
-  } catch {
-    // ignore (storage full/disabled)
-  }
-}
-
-// The NHL API caps each request at 100 rows, so a full-season roster
-// (~900+ skaters) needs to be paginated.
-async function fetchAllPlayersForSeason(season) {
-  const cached = getCachedRoster(season);
-  if (cached) return cached;
-
-  const pageSize = 100;
-  const first = await fetch(`${API_BASE}/api/players?${new URLSearchParams({ season, limit: pageSize, start: 0 })}`)
-    .then((r) => r.json());
-  const all = [...first.players];
-  const starts = [];
-  for (let s = pageSize; s < first.total; s += pageSize) starts.push(s);
-
-  const rest = await Promise.all(starts.map((s) =>
-    fetch(`${API_BASE}/api/players?${new URLSearchParams({ season, limit: pageSize, start: s })}`).then((r) => r.json())
-  ));
-  rest.forEach((page) => all.push(...page.players));
-
-  setCachedRoster(season, all);
-  return all;
 }
 
 // One random pass: shuffle candidates and greedily take the first ones

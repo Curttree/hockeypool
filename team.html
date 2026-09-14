@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tremblay Hockey Pool - Standings</title>
+<title>Tremblay Hockey Pool - Team</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,30 +18,34 @@
   </nav>
 
   <header>
-    <h1>Standings</h1>
+    <div>
+      <a href="/" class="back-link">&larr; Back to Standings</a>
+      <h1 id="team-title">Team</h1>
+    </div>
     <span id="season-label" class="season-label"></span>
   </header>
 
   <main>
     <p id="status">Loading…</p>
     <div class="table-scroll">
-      <table id="standings-table" hidden>
+      <table id="team-table" hidden>
         <thead>
           <tr>
-            <th class="num">Rank</th>
+            <th>Skaters</th>
             <th>Team</th>
             <th class="num">Score</th>
-            <th class="num">Behind Next</th>
-            <th class="num">Behind 1st</th>
+            <th class="num">G</th>
+            <th class="num">A</th>
           </tr>
         </thead>
         <tbody></tbody>
+        <tfoot></tfoot>
       </table>
     </div>
   </main>
 
   <script src="common.js"></script>
   <script src="teams.js"></script>
-  <script src="standings.js"></script>
+  <script src="team.js"></script>
 </body>
 </html>

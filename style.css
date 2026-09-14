@@ -18,6 +18,41 @@ body {
   color: var(--text);
 }
 
+.site-nav {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 32px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.site-nav-brand {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.site-nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.site-nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.site-nav-links a:hover {
+  color: var(--text);
+}
+
 header {
   padding: 24px 32px;
   border-bottom: 1px solid var(--border);
@@ -31,6 +66,11 @@ header {
 h1 {
   font-size: 1.4rem;
   margin: 0;
+}
+
+.season-label {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .controls {
@@ -218,8 +258,48 @@ th.sortable:hover {
 tbody tr:nth-child(even) { background: var(--row-alt); }
 tbody tr:hover { background: #232838; }
 
-tbody td:nth-child(3) { font-weight: 600; }
-tbody td:nth-child(9) { color: var(--accent); font-weight: 700; }
+#players-table tbody td:nth-child(3) { font-weight: 600; }
+#players-table tbody td:nth-child(9) { color: var(--accent); font-weight: 700; }
+
+.team-name { font-weight: 600; }
+.team-name a { color: var(--text); text-decoration: none; }
+.team-name a:hover { color: var(--accent); text-decoration: underline; }
+.score { color: var(--accent); font-weight: 700; }
+.warn { cursor: help; }
+
+.injury-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-style: italic;
+  font-weight: 700;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.totals-row td {
+  border-top: 2px solid var(--border);
+  font-weight: 700;
+}
 
 .checkbox-col {
   width: 32px;
