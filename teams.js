@@ -43,6 +43,13 @@
 //   as nobody checking rosters are exactly 20 players; just a rule to
 //   follow when editing this file.
 //
+// - seasonEnd (optional, on the season object alongside `teams`/`trades`):
+//   a "YYYY-MM-DD" date used only by the "Standings Over Time" chart's
+//   season-end projection option. Omit it and it defaults to April 15
+//   of the season's second year — a reasonable stand-in for when an
+//   NHL regular season wraps up — so you only need to set this if that
+//   guess is off for a given year.
+//
 // Injury status is normally detected automatically on the team detail
 // page (see common.js's fetchInjuries, sourced from ESPN's public
 // feed since the NHL's own API has no injury data). The manual
@@ -199,7 +206,30 @@ const TEAMS_BY_SEASON = {
         playerIn: { name: "Jordan Kyrou", points: 20, goals: 8, assists: 12 },
       },
     ],
+    // NHL's actual last day of the 2026-27 regular season.
+    seasonEnd: "2027-04-10",
   },
+  "20262027": {
+    teams:
+    [
+    {
+        name: "Curtis",
+        players: ["Nathan MacKinnon", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
+          "Matthew Schaefer", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
+          "Michael Misa", "Pierre-Luc Dubois", "Nick Paul", "Porter Martone", "Anton Frondell", "Zayne Parekh", "Filip Chytil"
+        ]
+    },
+    {
+        name: "Anmol",
+        players: ["Nick Suzuki", "Kyle Connor", "Jake Guentzel", "Mitch Marner", "Jack Hughes", "Connor Bedard", "Gabriel Vilardi",
+          "Seth Jarvis", "Ivan Demidov", "Auston Matthews", "Zach Hyman", "Nazem Kadri", "Brayden Point", "Jake Neighbours",
+          "Zachary Bolduc", "Blake Lizotte", "Tristan Broz", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos"
+        ]
+    }
+    ],
+    trades: [],
+    seasonEnd: "2027-04-10",
+  }
 };
 
 function getPoolSeasons() {
@@ -223,6 +253,43 @@ function findTeamByName(season, name) {
 function getTeamLogo(season, name) {
   const team = findTeamByName(season, name);
   return (team && team.logo) || null;
+}
+
+// A season's end date, for the history chart's season-end projection
+// option. Falls back to April 15 of the season's second year if not
+// configured explicitly (see the schema comment above).
+function getSeasonEnd(season) {
+  const configured = TEAMS_BY_SEASON[season] && TEAMS_BY_SEASON[season].seasonEnd;
+  if (configured) return configured;
+  const endYear = season.slice(4);
+  return `${endYear}-04-15`;
+}
+
+// "20262027" -> "20252026" — used to look up each player's prior-season
+// point total for a team's "Cost" (see computeTeamCost below).
+function previousSeasonId(season) {
+  const start = parseInt(season.slice(0, 4), 10) - 1;
+  const end = parseInt(season.slice(4), 10) - 1;
+  return `${start}${end}`;
+}
+
+// Sums a team's "Cost": each player's prior-season point total, minus
+// (rather than plus) anyone traded away, since they're no longer really
+// part of the roster going forward. `previousRosterIndex` is the prior
+// season's roster (buildRosterIndex) — fetch and build it once per
+// season and reuse it across every team, rather than per team.
+function computeTeamCost(season, team, previousRosterIndex) {
+  let totalCost = 0;
+  team.players.forEach((entry) => {
+    const name = playerName(entry);
+    const tradedOut = getTradeInfo(season, team.name, name).tradedOut;
+    // Team hint is dropped — a player's team last season may well
+    // differ from the (current-season) hint in teams.js.
+    const resolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry));
+    const previousPoints = !resolved.ambiguous && resolved.player ? resolved.player.points : null;
+    if (previousPoints != null) totalCost += tradedOut ? -previousPoints : previousPoints;
+  });
+  return totalCost;
 }
 
 function playerName(entry) {

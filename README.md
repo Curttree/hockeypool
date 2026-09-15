@@ -11,7 +11,7 @@ browsing/filtering NHL skater stats when drafting.
 | File | What it is |
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, plus a "Standings Over Time" line chart |
-| `team.html` | One team's full roster and per-player stats for a given season |
+| `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
 Shared logic lives in `common.js` (NHL data fetching + caching) and
@@ -85,6 +85,11 @@ Each year's pool draft is a new entry in `TEAMS_BY_SEASON` inside
    any web image format works (PNG/JPG/SVG/etc.), and a missing or
    broken file just falls back to a plain dot rather than erroring.
 
+7. Optional: set `seasonEnd: "YYYY-MM-DD"` on the season object itself
+   (alongside `teams`/`trades`) if the default guess of April 15 is off
+   for that year. It's only used by the chart's "Show season-end
+   projection" option — see below.
+
 That's it — commit and push `teams.js`. Everything else picks the new
 season up automatically:
 
@@ -128,6 +133,17 @@ redeploys automatically like any other push.
 No action needed from you day-to-day — this just runs in the
 background. A season needs at least two days of snapshots before the
 chart shows a line; until then it shows a placeholder message instead.
+
+The range picker's fourth option, "Projected", shows the full season
+(like "Season") plus a dashed line per team: a linear trend fit
+through that team's season-to-date snapshots — weighted so recent
+snapshots count more than older ones (each day further back counts
+for half as much every 7 days) — extrapolated out to that season's
+`seasonEnd` (see step 7 above). It's a "if this recent pace holds"
+line, not a simulation — recomputed from scratch on every render,
+nothing is stored. This option (and the range picker as a whole) only
+appears for the current season — it's hidden for past seasons, which
+always just show their full history.
 
 ## Architecture notes
 

@@ -421,6 +421,10 @@ tbody tr:hover { background: #232838; }
   margin-top: 32px;
 }
 
+#chart-controls[hidden] {
+  display: none;
+}
+
 .chart-section h2 {
   font-size: 1rem;
   margin: 0 0 12px;

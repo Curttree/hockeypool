@@ -65,11 +65,16 @@ function startPolling(team) {
 
 async function loadAndRender(team, isInitialLoad) {
   try {
-    const [roster, injuries] = await Promise.all([
+    const [roster, injuries, previousRoster] = await Promise.all([
       fetchAllPlayersForSeason(currentSeason),
       fetchInjuries(),
+      // "Cost" is a nice-to-have, not part of scoring — a failure here
+      // (e.g. no data at all for the prior season) shouldn't block the
+      // rest of the page from rendering.
+      fetchAllPlayersForSeason(previousSeasonId(currentSeason)).catch(() => []),
     ]);
     const rosterIndex = buildRosterIndex(roster);
+    const previousRosterIndex = buildRosterIndex(previousRoster);
 
     const rows = team.players.map((entry) => {
       const name = playerName(entry);
@@ -86,6 +91,13 @@ async function loadAndRender(team, isInitialLoad) {
       const player = resolved.ambiguous ? null : resolved.player;
       const credited = ambiguous ? null : creditedStats(tradeInfo, player);
 
+      // Team hint is dropped here — a player's team last season may
+      // well differ from the (current-season) hint in teams.js.
+      const previousResolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry));
+      const previousPoints = !previousResolved.ambiguous && previousResolved.player
+        ? previousResolved.player.points
+        : null;
+
       return {
         name,
         player,
@@ -93,12 +105,14 @@ async function loadAndRender(team, isInitialLoad) {
         tradedIn: tradeInfo.tradedIn,
         ambiguous,
         credited,
+        previousPoints,
         injured: manuallyFlagged || Boolean(liveInjury),
         injuryLabel: liveInjury ? (liveInjury.comment || liveInjury.status) : "Injured",
       };
     });
 
-    renderTeam(rows);
+    const totalCost = computeTeamCost(currentSeason, team, previousRosterIndex);
+    renderTeam(rows, totalCost);
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
@@ -106,11 +120,11 @@ async function loadAndRender(team, isInitialLoad) {
   }
 }
 
-function renderTeam(rows) {
+function renderTeam(rows, totalCost) {
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited }) => {
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints }) => {
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
     const acquiredBadge = tradedIn
@@ -120,6 +134,7 @@ function renderTeam(rows) {
       ? `<span class="traded-badge" title="Traded away — stats locked as of the trade">Traded</span>`
       : "";
     const displayName = player ? shortName(player.skaterFullName, player.lastName) : name;
+    const costCell = `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
 
     const tr = document.createElement("tr");
     if (credited) {
@@ -129,6 +144,7 @@ function renderTeam(rows) {
       tr.innerHTML = `
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}</td>
         <td>${player ? player.teamAbbrevs : "—"}</td>
+        ${costCell}
         <td class="num score">${credited.points}</td>
         <td class="num">${credited.goals}</td>
         <td class="num">${credited.assists}</td>
@@ -140,6 +156,7 @@ function renderTeam(rows) {
       tr.innerHTML = `
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge} <span class="warn" title="${warningTitle}">⚠</span></td>
         <td>—</td>
+        ${costCell}
         <td class="num score">0</td>
         <td class="num">0</td>
         <td class="num">0</td>
@@ -151,6 +168,7 @@ function renderTeam(rows) {
   tfoot.innerHTML = `
     <tr class="totals-row">
       <td colspan="2">Total</td>
+      <td class="num">${totalCost.toLocaleString()}</td>
       <td class="num score">${totalScore.toLocaleString()}</td>
       <td class="num">${totalGoals.toLocaleString()}</td>
       <td class="num">${totalAssists.toLocaleString()}</td>

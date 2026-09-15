@@ -7,16 +7,20 @@ const chartCanvas = document.getElementById("standings-chart");
 const chartStatus = document.getElementById("chart-status");
 const chartHint = document.getElementById("chart-hint");
 const rangeSelect = document.getElementById("chart-range");
+const projectionNote = document.getElementById("projection-note");
+const chartControls = document.getElementById("chart-controls");
 
 const TEAM_COLORS = [
   "#4ea1ff", "#ff8a4e", "#5ee6a0", "#e659c9", "#f4d35e", "#9d8cff", "#ff5c5c", "#5ec8e6",
 ];
 
 // Days to look back from the most recent snapshot for each range option
-// (null = no limit, show the whole season). Anchored to the latest
-// snapshot's own date rather than today's real date, so the window
-// doesn't look short just because today's snapshot hasn't run yet.
-const RANGE_DAYS = { week: 7, month: 30, season: null };
+// (null = no limit, show the whole season — "projected" is the same
+// full-season view as "season", just with the trend line added too).
+// Anchored to the latest snapshot's own date rather than today's real
+// date, so the window doesn't look short just because today's snapshot
+// hasn't run yet.
+const RANGE_DAYS = { week: 7, month: 30, season: null, projected: null };
 
 let historyData = null;
 let chart = null;
@@ -48,6 +52,88 @@ function loadLogo(src) {
   return logoCache.get(src);
 }
 
+// A pace shift from a month ago should count for less than one from
+// yesterday — each point's weight halves every this many days further
+// back from the most recent point being fit.
+const PROJECTION_HALF_LIFE_DAYS = 7;
+
+// Weighted least-squares fit of y = m*x + b through the given
+// { x, y, w } points. Returns null if there aren't at least 2 points,
+// or they're all at the same x (a vertical fit isn't meaningful here).
+function weightedLinearRegression(points) {
+  if (points.length < 2) return null;
+  let sumW = 0, sumWX = 0, sumWY = 0, sumWXY = 0, sumWXX = 0;
+  points.forEach(({ x, y, w }) => {
+    sumW += w;
+    sumWX += w * x;
+    sumWY += w * y;
+    sumWXY += w * x * y;
+    sumWXX += w * x * x;
+  });
+  const denom = sumW * sumWXX - sumWX * sumWX;
+  if (denom === 0) return null;
+  const m = (sumW * sumWXY - sumWX * sumWY) / denom;
+  const b = (sumWY - m * sumWX) / sumW;
+  return { m, b };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Builds one dashed "projection" dataset per team: a linear trend fit
+// through that team's already-captured points (over whatever range is
+// currently selected) — weighted so recent snapshots count more than
+// older ones — extrapolated to the season's end date. Returns [] if
+// the season's already effectively over, or there's nothing worth
+// projecting from.
+function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
+  const seasonEnd = getSeasonEnd(season);
+  const seasonEndTime = new Date(seasonEnd).getTime();
+  const baseTime = new Date(entries[0].date).getTime();
+  const lastTime = new Date(entries[entries.length - 1].date).getTime();
+  if (!(seasonEndTime > lastTime)) return [];
+
+  const endX = (seasonEndTime - baseTime) / DAY_MS;
+  const lastIndex = entries.length - 1;
+  const lastX = (lastTime - baseTime) / DAY_MS;
+
+  return teamNames
+    .map((team, i) => {
+      const lastReal = realDatasets[i].data[lastIndex];
+      if (lastReal == null) return null; // team has no value at the last displayed point
+
+      const points = entries
+        .map((e) => {
+          const found = e.standings.find((s) => s.team === team);
+          if (!found) return null;
+          const x = (new Date(e.date).getTime() - baseTime) / DAY_MS;
+          const w = Math.pow(0.5, (lastX - x) / PROJECTION_HALF_LIFE_DAYS);
+          return { x, y: found.score, w };
+        })
+        .filter(Boolean);
+      const fit = weightedLinearRegression(points);
+      if (!fit) return null;
+
+      const projected = Math.max(0, Math.round(fit.m * endX + fit.b));
+      const data = new Array(entries.length + 1).fill(null);
+      data[lastIndex] = lastReal; // anchor the dashed segment to the real line's end
+      data[lastIndex + 1] = projected;
+
+      return {
+        label: `${team} (Projected)`,
+        data,
+        borderColor: TEAM_COLORS[i % TEAM_COLORS.length],
+        backgroundColor: TEAM_COLORS[i % TEAM_COLORS.length],
+        borderDash: [6, 4],
+        pointRadius: data.map((_, idx) => (idx === lastIndex + 1 ? 5 : 0)),
+        spanGaps: true,
+        tension: 0,
+        isProjection: true,
+        projectionFor: i,
+      };
+    })
+    .filter(Boolean);
+}
+
 function filterByRange(entries, range) {
   const days = RANGE_DAYS[range];
   if (!days || entries.length === 0) return entries;
@@ -60,12 +146,22 @@ function filterByRange(entries, range) {
 
 async function renderChart(season) {
   const myToken = ++renderToken;
+
+  // The range picker (including "Projected") only makes sense for the
+  // season currently being played — hide it for past seasons and
+  // always show their full history instead.
+  const seasons = getPoolSeasons();
+  const isCurrentSeason = season === seasons[seasons.length - 1];
+  chartControls.hidden = !isCurrentSeason;
+  if (!isCurrentSeason) rangeSelect.value = "season";
+
   const allEntries = (historyData[season] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
   const entries = filterByRange(allEntries, rangeSelect.value);
 
   if (entries.length < 2) {
     chartCanvas.hidden = true;
     chartHint.hidden = true;
+    projectionNote.hidden = true;
     chartStatus.hidden = false;
     if (allEntries.length === 0) {
       chartStatus.textContent = "No history yet for this season — check back after the first daily snapshot.";
@@ -112,9 +208,27 @@ async function renderChart(season) {
   // to renderChart already took over, so drop this now-stale result.
   if (myToken !== renderToken) return;
 
+  let addedProjection = false;
+  if (isCurrentSeason && rangeSelect.value === "projected") {
+    const projectionDatasets = buildProjectionDatasets(season, entries, teamNames, datasets);
+    if (projectionDatasets.length) {
+      addedProjection = true;
+      labels.push(getSeasonEnd(season));
+      // Pad the real datasets to match the new label so their lines
+      // don't stretch to it (spanGaps only bridges nulls in between).
+      datasets.forEach((ds) => {
+        ds.data.push(null);
+        if (Array.isArray(ds.pointStyle)) ds.pointStyle.push("circle");
+        if (Array.isArray(ds.pointRadius)) ds.pointRadius.push(0);
+      });
+      datasets.push(...projectionDatasets);
+    }
+  }
+
   chartStatus.hidden = true;
   chartCanvas.hidden = false;
   chartHint.hidden = false;
+  projectionNote.hidden = !addedProjection;
 
   if (chart) chart.destroy();
   chart = new Chart(chartCanvas, {
@@ -124,20 +238,32 @@ async function renderChart(season) {
       responsive: true,
       plugins: {
         legend: {
-          labels: { color: "#e8eaed" },
+          labels: {
+            color: "#e8eaed",
+            // Projection datasets ride along with their team's real
+            // dataset (see onClick below) — they don't need their own
+            // legend entry too.
+            filter: (legendItem, data) => !data.datasets[legendItem.datasetIndex].isProjection,
+          },
           // Default Chart.js behavior just toggles one line at a time.
           // This instead isolates: click a team to hide every other
-          // line, click it again (or click the last remaining solo line)
-          // to restore all of them.
+          // line (and that team's own dashed projection, if any), click
+          // it again (or click the last remaining solo line) to restore
+          // all of them.
           onClick: (evt, legendItem, legend) => {
             const target = legend.chart;
             const index = legendItem.datasetIndex;
-            const onlyThisOneVisible = target.data.datasets.every((_, i) =>
-              i === index ? target.isDatasetVisible(i) : !target.isDatasetVisible(i)
+            const groupOf = (i) => {
+              const ds = target.data.datasets[i];
+              return ds.projectionFor !== undefined ? ds.projectionFor : i;
+            };
+            const clickedGroup = groupOf(index);
+            const onlyThisGroupVisible = target.data.datasets.every((_, i) =>
+              (groupOf(i) === clickedGroup) === target.isDatasetVisible(i)
             );
 
             target.data.datasets.forEach((_, i) => {
-              target.setDatasetVisibility(i, onlyThisOneVisible || i === index);
+              target.setDatasetVisibility(i, onlyThisGroupVisible || groupOf(i) === clickedGroup);
             });
             target.update();
           },

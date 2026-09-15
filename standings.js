@@ -9,12 +9,24 @@ function formatSeasonLabel(seasonId) {
   return `${start}-${end}`;
 }
 
-function computeStandings(season, teams, roster) {
+// A team costing more than this (prior-season points, traded-away
+// players subtracted — see computeTeamCost in teams.js) gets flagged on
+// the Standings page, in case the pool enforces a salary-cap-style limit.
+const COST_WARNING_THRESHOLD = 1000;
+
+// A pool roster should have exactly this many currently-active players —
+// a traded-away player still lives in `players` (see getTradeInfo) but
+// no longer counts toward this, since they're not really on the team.
+const EXPECTED_ROSTER_SIZE = 20;
+
+function computeStandings(season, teams, roster, previousRoster) {
   const rosterIndex = buildRosterIndex(roster);
+  const previousRosterIndex = buildRosterIndex(previousRoster);
 
   return teams
     .map((team) => {
       let score = 0;
+      let activeCount = 0;
       const missing = [];
       const ambiguous = [];
       team.players.forEach((entry) => {
@@ -27,6 +39,8 @@ function computeStandings(season, teams, roster) {
           score += creditedStats(tradeInfo, null).points;
           return;
         }
+
+        activeCount++;
 
         const { player, ambiguous: isAmbiguous } = resolvePlayer(
           rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry)
@@ -44,7 +58,8 @@ function computeStandings(season, teams, roster) {
           missing.push(name);
         }
       });
-      return { name: team.name, score, missing, ambiguous };
+      const cost = computeTeamCost(season, team, previousRosterIndex);
+      return { name: team.name, score, missing, ambiguous, cost, activeCount };
     })
     .sort((a, b) => b.score - a.score);
 }
@@ -60,6 +75,12 @@ function renderStandings(standings, season) {
     if (team.missing.length) warningParts.push(`no data found for: ${team.missing.join(", ")}`);
     if (team.ambiguous.length) {
       warningParts.push(`multiple players named ${team.ambiguous.join(", ")} — add team/position in teams.js to disambiguate`);
+    }
+    if (team.cost > COST_WARNING_THRESHOLD) {
+      warningParts.push(`total cost is ${team.cost.toLocaleString()}, over the ${COST_WARNING_THRESHOLD.toLocaleString()} limit`);
+    }
+    if (team.activeCount !== EXPECTED_ROSTER_SIZE) {
+      warningParts.push(`roster has ${team.activeCount} current players, not ${EXPECTED_ROSTER_SIZE} (traded-away players don't count)`);
     }
     const warning = warningParts.length
       ? ` <span class="warn" title="${warningParts.join("; ")}">⚠</span>`
@@ -108,8 +129,13 @@ async function loadAndRender(isInitialLoad) {
   }
 
   try {
-    const roster = await fetchAllPlayersForSeason(currentSeason);
-    const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster);
+    const [roster, previousRoster] = await Promise.all([
+      fetchAllPlayersForSeason(currentSeason),
+      // Only used for the cost warning — a failure here shouldn't block
+      // the standings themselves from rendering.
+      fetchAllPlayersForSeason(previousSeasonId(currentSeason)).catch(() => []),
+    ]);
+    const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster);
     renderStandings(standings, currentSeason);
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered

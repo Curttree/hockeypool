@@ -46,12 +46,13 @@
     <section class="chart-section">
       <div class="selected-header">
         <h2>Standings Over Time</h2>
-        <div class="controls">
+        <div class="controls" id="chart-controls">
           <label for="chart-range">Range</label>
           <select id="chart-range">
             <option value="week">1 Week</option>
             <option value="month">1 Month</option>
             <option value="season" selected>Season</option>
+            <option value="projected">Projected</option>
           </select>
         </div>
       </div>
@@ -59,7 +60,8 @@
       <div class="chart-container">
         <canvas id="standings-chart" hidden></canvas>
       </div>
-      <p id="chart-hint" class="muted-note" hidden>Click a team in the legend to isolate its line — click it again to restore all.</p>
+      <p id="chart-hint" class="muted-note" hidden>Click a team in the legend to isolate its line. Click it again to restore all.</p>
+      <p id="projection-note" class="muted-note" hidden>Dashed lines project each team's full-season pace.</p>
     </section>
   </main>
 
