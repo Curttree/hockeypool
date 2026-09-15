@@ -14,11 +14,6 @@ function formatSeasonLabel(seasonId) {
 // the Standings page, in case the pool enforces a salary-cap-style limit.
 const COST_WARNING_THRESHOLD = 1000;
 
-// A pool roster should have exactly this many currently-active players —
-// a traded-away player still lives in `players` (see getTradeInfo) but
-// no longer counts toward this, since they're not really on the team.
-const EXPECTED_ROSTER_SIZE = 20;
-
 function computeStandings(season, teams, roster, previousRoster) {
   const rosterIndex = buildRosterIndex(roster);
   const previousRosterIndex = buildRosterIndex(previousRoster);
@@ -26,7 +21,6 @@ function computeStandings(season, teams, roster, previousRoster) {
   return teams
     .map((team) => {
       let score = 0;
-      let activeCount = 0;
       const missing = [];
       const ambiguous = [];
       team.players.forEach((entry) => {
@@ -39,8 +33,6 @@ function computeStandings(season, teams, roster, previousRoster) {
           score += creditedStats(tradeInfo, null).points;
           return;
         }
-
-        activeCount++;
 
         const { player, ambiguous: isAmbiguous } = resolvePlayer(
           rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry)
@@ -59,6 +51,7 @@ function computeStandings(season, teams, roster, previousRoster) {
         }
       });
       const cost = computeTeamCost(season, team, previousRosterIndex);
+      const activeCount = countActivePlayers(season, team);
       return { name: team.name, score, missing, ambiguous, cost, activeCount };
     })
     .sort((a, b) => b.score - a.score);

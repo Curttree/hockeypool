@@ -292,6 +292,21 @@ function computeTeamCost(season, team, previousRosterIndex) {
   return totalCost;
 }
 
+// A pool roster should have exactly this many currently-active players —
+// a traded-away player still lives in `players` (see getTradeInfo) but
+// no longer counts toward this, since they're not really on the team.
+const EXPECTED_ROSTER_SIZE = 20;
+
+// Counts a team's currently-active players: everyone in `players` except
+// anyone traded away — still listed for scoring continuity, but no
+// longer really part of the roster going forward.
+function countActivePlayers(season, team) {
+  return team.players.filter((entry) => {
+    const name = playerName(entry);
+    return !getTradeInfo(season, team.name, name).tradedOut;
+  }).length;
+}
+
 function playerName(entry) {
   return typeof entry === "string" ? entry : entry.name;
 }

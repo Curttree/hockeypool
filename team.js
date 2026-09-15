@@ -42,7 +42,11 @@ async function init() {
     return;
   }
 
-  titleEl.textContent = team.name;
+  const activeCount = countActivePlayers(currentSeason, team);
+  const rosterWarning = activeCount !== EXPECTED_ROSTER_SIZE
+    ? ` <span class="warn" title="Roster has ${activeCount} current players, not ${EXPECTED_ROSTER_SIZE} (traded-away players don't count)">⚠</span>`
+    : "";
+  titleEl.innerHTML = `${team.name}${rosterWarning}`;
   document.title = `Tremblay Hockey Pool - ${team.name}`;
   seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
   backLinkEl.href = `/?season=${encodeURIComponent(currentSeason)}`;
