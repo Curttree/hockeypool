@@ -68,9 +68,9 @@ const TEAMS_BY_SEASON = {
     {
         name: "Curtis",
         logo: "images/curtis.svg",
-        players: ["Nathan MacKinnon", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
+        players: ["Macklin Celebrini", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
           "Matthew Schaefer", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
-          "Michael Misa", "Pierre-Luc Dubois", "Nick Paul", "Porter Martone", "Anton Frondell", "Zayne Parekh", "Filip Chytil"
+          "Easton Cowan", "Pierre-Luc Dubois", "Nick Paul", "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
         ]
     },
     {
