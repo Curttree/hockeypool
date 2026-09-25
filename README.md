@@ -32,20 +32,19 @@ Each year's pool draft is a new entry in `TEAMS_BY_SEASON` inside
 **`teams.js`** — that's the only file you need to touch.
 
 1. Add a new key for the season (NHL's season id format: start year +
-   end year, e.g. `"20262027"` for the 2026-27 season):
+   end year, e.g. `"20272028"` for the 2027-28 season):
 
    ```js
    const TEAMS_BY_SEASON = {
-     "20242025": { teams: [ /* ... */ ], trades: [ /* ... */ ] },
-     "20252026": { teams: [ /* ... */ ], trades: [ /* ... */ ] },
-     "20262027": {
+     "20262027": { teams: [ /* ... */ ], trades: [ /* ... */ ] },
+     "20272028": {
        teams: [
          {
-           name: "Ice Breakers",
-           logo: "images/ice-breakers.svg", // optional — see below
+           name: "Curtis",
+           logo: "images/curtis.svg", // optional — see below
            players: [ /* that team's 20 draft picks */ ],
          },
-         { name: "Blue Line Bandits", players: [ /* ... */ ] },
+         { name: "Anmol", players: [ /* ... */ ] },
          // one entry per team playing this season
        ],
        trades: [], // mid-season trades go here as the year plays out — see below
@@ -95,7 +94,7 @@ season up automatically:
 
 - The season dropdown on the Standings page lists whatever seasons
   exist in `TEAMS_BY_SEASON`, and defaults to whichever one sorts last
-  — so once you add `20262027`, it becomes the default shown.
+  — so once you add `20272028`, it becomes the default shown.
 - Player stats for that season are fetched from the same season-agnostic
   NHL proxy that already handles every season — no backend changes.
 - Live injury status (from ESPN's public feed, since the NHL's own API

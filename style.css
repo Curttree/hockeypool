@@ -421,6 +421,7 @@ tbody tr:hover { background: #232838; }
   margin-top: 32px;
 }
 
+#season-controls[hidden],
 #chart-controls[hidden] {
   display: none;
 }

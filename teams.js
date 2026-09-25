@@ -59,161 +59,15 @@
 // Names must match the NHL API's "skaterFullName" spelling exactly,
 // e.g. "Tim Stützle".
 //
-// PLACEHOLDER DATA — swap these sample seasons/teams out for the real
-// pool. Add a new season by adding another key here; nothing else in
-// the code needs to change.
+// Add a new season by adding another key here; nothing else in the code
+// needs to change.
 const TEAMS_BY_SEASON = {
-  "20242025": {
-    teams: [
-      {
-        name: "Ice Breakers",
-        players: [
-          "Nikita Kucherov", "Nathan MacKinnon", "David Pastrnak", "Leon Draisaitl",
-          "Mitch Marner", "Connor McDavid", "Kyle Connor", "Jack Eichel",
-          "Cale Makar", "Sidney Crosby", "Clayton Keller", "Brandon Hagel",
-          "Nick Suzuki", "Artemi Panarin", "Jesper Bratt", "Mikko Rantanen",
-          "Mark Scheifele", "William Nylander", "Martin Necas", "Zach Werenski",
-        ],
-      },
-      {
-        name: "Blue Line Bandits",
-        players: [
-          "Matt Duchene", "Brayden Point", "Dylan Strome", "Sam Reinhart",
-          "Robert Thomas", "Jake Guentzel", "Jason Robertson", "Lucas Raymond",
-          "Tim Stützle", "Auston Matthews", "Filip Forsberg", "Quinn Hughes",
-          "Travis Konecny", "Kirill Marchenko", "John Tavares", "Sebastian Aho",
-          "Alex Ovechkin", "Adrian Kempe", "Matt Boldy", "Tage Thompson",
-        ],
-      },
-      {
-        name: "Puck Hogs",
-        players: [
-          "Wyatt Johnston", "Aleksander Barkov", "Dylan Larkin", "Alex DeBrincat",
-          "Jack Hughes", "Jordan Kyrou", "Rickard Rakell", "J.T. Miller",
-          "Cole Caufield", "Nico Hischier", "John-Jason Peterka", "Rasmus Dahlin",
-          "Drake Batherson", "Roope Hintz", "Evan Bouchard", "Mark Stone",
-          "Connor Bedard", "Nazem Kadri", "Alex Tuch", "Seth Jarvis",
-        ],
-      },
-      {
-        // Didn't return for the 2025-2026 season — see the "Grinders"
-        // note below for the team that joined in its place.
-        name: "Slap Shots",
-        players: [
-          "Aliaksei Protas", "Victor Hedman", "Mikael Granlund", "Pierre-Luc Dubois",
-          "Lane Hutson", "Bryan Rust", "Tom Wilson", "Logan Cooley",
-          "Nick Schmaltz", "Dylan Holloway", "Matvei Michkov", "Macklin Celebrini",
-          "Nikolaj Ehlers", "Josh Morrissey", "Ryan Donato", "Mika Zibanejad",
-          "Jonathan Huberdeau", "Gabriel Vilardi", "Jared McCann", "Adam Fox",
-        ],
-      },
-    ],
-    trades: [],
-  },
-  "20252026": {
-    teams: [
-      {
-        name: "Ice Breakers",
-        logo: "images/ice-breakers.svg",
-        players: [
-          "Connor McDavid", { name: "Nathan MacKinnon", injured: true }, "Nikita Kucherov", "Macklin Celebrini",
-          "Mark Scheifele", "Nick Suzuki", "Martin Necas", "David Pastrnak",
-          "Leon Draisaitl", "Jason Robertson", "Evan Bouchard", "Kyle Connor",
-          "Jack Eichel", "Kirill Kaprizov", "Cole Caufield", "Jake Guentzel",
-          "Clayton Keller", "Wyatt Johnston", "Matt Boldy", "Alex DeBrincat",
-          // Traded away mid-season — see `trades` below. Still listed,
-          // shown with a "Traded" badge on the team page.
-          "Jordan Kyrou",
-        ],
-      },
-      {
-        name: "Blue Line Bandits",
-        logo: "images/blue-line-bandits.svg",
-        players: [
-          "Artemi Panarin", "Tim Stützle", { name: "Zach Werenski", injured: true }, "Tage Thompson",
-          "Mitch Marner", "Sebastian Aho", "William Nylander", "Cale Makar",
-          "Mika Zibanejad", "Lane Hutson", "Jack Hughes", "Mikko Rantanen",
-          "Lucas Raymond", "Quinn Hughes", "Filip Forsberg", "Connor Bedard",
-          "Brandon Hagel", "Nick Schmaltz", "Sidney Crosby", "Ryan O'Reilly",
-        ],
-      },
-      {
-        name: "Puck Hogs",
-        logo: "images/puck-hogs.svg",
-        players: [
-          { name: "Rasmus Dahlin", injured: true }, "Dylan Guenther", "Adrian Kempe", "Juraj Slafkovský",
-          "Mark Stone", "Mathew Barzal", "Drake Batherson", "John Tavares",
-          "Nikolaj Ehlers", "Jesper Bratt", "Peyton Krebs", "Dougie Hamilton",
-          "Shea Theodore", "Oliver Ekman-Larsson", "Will Cuylle", "Joel Farabee",
-          "Erik Haula", "Boone Jenner", "Anze Kopitar", "Jack Roslovic",
-        ],
-      },
-      {
-        // New for 2025-2026, replacing "Slap Shots".
-        name: "Grinders",
-        logo: "images/grinders.svg",
-        players: [
-          { name: "Jordan Staal", injured: true }, "Ilya Mikheyev", "Jamie Benn", "Jake Neighbours",
-          "Sean Monahan", "Sean Couturier", "Eeli Tolvanen", "Max Domi",
-          "Ryan Poehling", "Morgan Rielly", "Thomas Harley", "John Marino",
-          "Parker Kelly", "Blake Coleman", "Ben Kindel", "Fraser Minten",
-          "Jean-Gabriel Pageau", "Michael Amadio", "Justin Sourdif", "Linus Karlsson",
-        ],
-      },
-      {
-        // Added just to see how the chart looks with more than 4 lines.
-        name: "Empty Netters",
-        logo: "images/empty-netters.svg",
-        players: [
-          "Ryan Nugent-Hopkins", "Luke Evangelista", "Carter Verhaeghe", "Roman Josi",
-          "Alexander Wennberg", "Josh Morrissey", "Jordan Eberle", "Jake Sanderson",
-          "Mats Zuccarello", "Viktor Arvidsson", "Brad Marchand", "Ryan McLeod",
-          "Jackson Blake", "Adam Fox", "William Eklund", "Vincent Trocheck",
-          "Auston Matthews", "J.T. Miller", "Josh Doan", "Anthony Cirelli",
-        ],
-      },
-      {
-        name: "Hat Trick Heroes",
-        logo: "images/hat-trick-heroes.svg",
-        players: [
-          "Zach Hyman", "Aliaksei Protas", "Joel Eriksson Ek", "Jimmy Snuggerud",
-          "Jack Quinn", "Brock Faber", "Christian Dvorak", "Dylan Holloway",
-          "Owen Tippett", "Matvei Michkov", "Nazem Kadri", "Shayne Gostisbehere",
-          "Chris Kreider", "Matty Beniers", "Brayden Point", "Chandler Stephenson",
-          "Valeri Nichushkin", "Filip Hronek", "Quinton Byfield", "Marcus Johansson",
-        ],
-      },
-      {
-        name: "Odd Man Rush",
-        logo: "images/odd-man-rush.svg",
-        players: [
-          "Tyler Toffoli", "Claude Giroux", "Pavel Buchnevich", "Taylor Hall",
-          "Brock Boeser", "Rickard Rakell", "Artturi Lehkonen", "Elias Lindholm",
-          "Rasmus Andersson", "Noah Dobson", "Vladimir Tarasenko", "John-Jason Peterka",
-          "Noah Cates", "Connor McMichael", "Shane Pinto", "Bobby McMann",
-          "Collin Graf", "Jason Zucker", "Matt Duchene", "Matt Coronato",
-        ],
-      },
-    ],
-    trades: [
-      {
-        team: "Ice Breakers",
-        // DeBrincat had 27g/33a (60 pts) at the trade date — he's since
-        // kept scoring for his new team, but that no longer counts here.
-        playerOut: { name: "Alex DeBrincat", points: 60, goals: 27, assists: 33 },
-        // Kyrou had 8g/12a (20 pts) before the trade; only production
-        // since joining Ice Breakers counts toward their total.
-        playerIn: { name: "Jordan Kyrou", points: 20, goals: 8, assists: 12 },
-      },
-    ],
-    // NHL's actual last day of the 2026-27 regular season.
-    seasonEnd: "2027-04-10",
-  },
   "20262027": {
     teams:
     [
     {
         name: "Curtis",
+        logo: "images/curtis.svg",
         players: ["Nathan MacKinnon", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
           "Matthew Schaefer", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
           "Michael Misa", "Pierre-Luc Dubois", "Nick Paul", "Porter Martone", "Anton Frondell", "Zayne Parekh", "Filip Chytil"
@@ -221,6 +75,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Anmol",
+        logo: "images/anmol.svg",
         players: ["Nick Suzuki", "Kyle Connor", "Jake Guentzel", "Mitch Marner", "Jack Hughes", "Connor Bedard", "Gabriel Vilardi",
           "Seth Jarvis", "Ivan Demidov", "Auston Matthews", "Zach Hyman", "Nazem Kadri", "Brayden Point", "Jake Neighbours",
           "Zachary Bolduc", "Blake Lizotte", "Tristan Broz", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos"
@@ -228,6 +83,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Jordan",
+        logo: "images/jordan.svg",
         players: ["Connor McDavid", "David Pastrnak", "Leon Draisaitl", "Connor Bedard", "Gabriel Vilardi", "Brock Nelson", "Bryan Rust",
           "Will Cuylle", "Travis Sanheim", "Dmitry Orlov", "K'Andre Miller", "Jack Roslovic", "Sean Monahan", "Brent Burns",
           "Gabriel Landeskog", "Philip Broberg", "Berkly Catton", "Oskar Sundqvist", "Wyatt Kaiser", "Kirby Dach"
@@ -235,6 +91,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Hannah",
+        logo: "images/hannah.svg",
         players: ["Nathan MacKinnon","Evan Bouchard", "William Nylander", "Jack Hughes", "Sidney Crosby", "Mark Stone", "Dylan Larkin",
           "Ivan Barbashev", "Auston Matthews", "J.T. Miller", "Vladimir Tarasenko", "Boone Jenner", "Michael Amadio", "Andre Burakovsky",
           "Jake Evans", "Nick Cousins", "Tyler Seguin", "Barclay Goodrow", "William Karlsson", "Nils Hoglander"
@@ -242,6 +99,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Gayle",
+        logo: "images/gayle.svg",
         players: ["Connor McDavid", "Nathan MacKinnon", "William Nylander", "Mika Zibanejad", "Filip Forsberg", "Juraj Slafkovský",
           "Nikolaj Ehlers", "Andrei Svechnikov", "Kirill Marchenko", "Miro Heiskanen", "Mikhail Sergachev", "Shayne Gostisbehere", "Oskar Sundqvist",
           "Uvis Balinskis", "Juuso Parssinen", "Jonah Gadjovich", "Vladislav Kolyachonok", "Ivan Miroshnichenko", "Maksim Tsyplakov",
@@ -312,6 +170,20 @@ function computeTeamCost(season, team, previousRosterIndex) {
     if (previousPoints != null) totalCost += tradedOut ? -previousPoints : previousPoints;
   });
   return totalCost;
+}
+
+// True if the player appears in the given roster index at all (a name
+// shared by several players still counts — they clearly exist). Team
+// hint is dropped since a player's team can change between seasons.
+//
+// Used against *last* season's roster as the "does this player really
+// exist" check: a player with no current-season stats yet (season not
+// started, or just hasn't played) only warrants a warning if they
+// weren't in last season's list either. Anyone who's since left the
+// league is expected to be flagged by hand.
+function existsInRoster(rosterIndex, entry) {
+  const r = resolvePlayer(rosterIndex, playerName(entry), null, playerPositionHint(entry));
+  return r.ambiguous || Boolean(r.player);
 }
 
 // A pool roster should have exactly this many currently-active players —

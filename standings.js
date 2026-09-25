@@ -46,7 +46,9 @@ function computeStandings(season, teams, roster, previousRoster) {
         const credited = creditedStats(tradeInfo, player);
         if (credited) {
           score += credited.points;
-        } else {
+        } else if (!existsInRoster(previousRosterIndex, entry)) {
+          // No stats yet is fine for anyone who was around last season;
+          // only flag names we can't find in either.
           missing.push(name);
         }
       });
@@ -106,6 +108,8 @@ function buildSeasonOptions() {
 
   const requestedSeason = new URLSearchParams(location.search).get("season");
   seasonSelect.value = seasons.includes(requestedSeason) ? requestedSeason : seasons[seasons.length - 1];
+  // Nothing to choose between until a second season exists.
+  document.getElementById("season-controls").hidden = seasons.length <= 1;
   return seasonSelect.value;
 }
 

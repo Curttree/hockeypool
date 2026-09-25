@@ -102,9 +102,13 @@ async function loadAndRender(team, isInitialLoad) {
         ? previousResolved.player.points
         : null;
 
+      // No live stats yet is fine for anyone who was around last season.
+      const noDataExpected = existsInRoster(previousRosterIndex, entry);
+
       return {
         name,
         player,
+        noDataExpected,
         tradedOut: tradeInfo.tradedOut,
         tradedIn: tradeInfo.tradedIn,
         ambiguous,
@@ -128,7 +132,7 @@ function renderTeam(rows, totalCost) {
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints }) => {
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, noDataExpected }) => {
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
     const acquiredBadge = tradedIn
@@ -157,8 +161,11 @@ function renderTeam(rows, totalCost) {
       const warningTitle = ambiguous
         ? "Multiple players share this name — add team/position in teams.js to disambiguate"
         : "No stats found for this player";
+      const warningIcon = noDataExpected && !ambiguous
+        ? ""
+        : ` <span class="warn" title="${warningTitle}">⚠</span>`;
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge} <span class="warn" title="${warningTitle}">⚠</span></td>
+        <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}${warningIcon}</td>
         <td>—</td>
         ${costCell}
         <td class="num score">0</td>
