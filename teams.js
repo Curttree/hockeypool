@@ -105,6 +105,20 @@ const TEAMS_BY_SEASON = {
           "Uvis Balinskis", "Juuso Parssinen", "Jonah Gadjovich", "Vladislav Kolyachonok", "Ivan Miroshnichenko", "Maksim Tsyplakov",
           "Kirill Kudryavtsev"
         ]
+    },
+    {
+        name: "Luke",
+        logo: "",
+        players:["Connor McDavid", "Nikita Kucherov", "Nathan MacKinnon", "Connor Bedard", "Sidney Crosby", "Alex Ovechkin", "Brad Marchand",
+        "Luke Hughes", "Marco Rossi", "Ridly Greig", "Justin Brazeau", "Cole Perfetti", "Bobby Brink", "David Perron",
+        "Jaden Schwartz", "Jonatan Berggren", "Matvei Gridin", "Pierre-Luc Dubois", "Ryan Ufko", "Porter Martone"]
+    },
+    {
+        name: "Rick",
+        Logo: "",
+        players:["Leon Draisaitl", "Kirill Kaprizov", "William Nylander", "Jack Hughes", "Mikko Rantanen", "Robert Thomas", "Sam Reinhart", "Brady Tkachuk", "Auston Matthews",
+        "Zach Hyman", "Jimmy Snuggerud", "Brayden Point", "Jordan Kyrou", "Matthew Tkachuk", "Josh Norris", "Gabe Perreault", "Pierre-Luc Dubois",
+        "Tyler Seguin", "Porter Martone", "Ilya Protas"]
     }
     ],
     trades: [],
