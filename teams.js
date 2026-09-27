@@ -102,7 +102,7 @@ const TEAMS_BY_SEASON = {
         logo: "images/gayle.svg",
         players: ["Connor McDavid", "Nathan MacKinnon", "William Nylander", "Mika Zibanejad", "Filip Forsberg", "Juraj Slafkovský",
           "Nikolaj Ehlers", "Andrei Svechnikov", "Kirill Marchenko", "Miro Heiskanen", "Mikhail Sergachev", "Shayne Gostisbehere", "Oskar Sundqvist",
-          "Uvis Balinskis", "Juuso Parssinen", "Jonah Gadjovich", "Vladislav Kolyachonok", "Ivan Miroshnichenko", "Maksim Tsyplakov",
+          "Uvis Balinskis", "Juuso Parssinen", "Dominik Shine", "Vladislav Kolyachonok", "Ivan Miroshnichenko", "Maksim Tsyplakov",
           "Kirill Kudryavtsev"
         ]
     },
