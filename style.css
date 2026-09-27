@@ -458,3 +458,26 @@ tbody tr:hover { background: #232838; }
   color: #ff6b6b;
   background: rgba(255, 107, 107, 0.1);
 }
+
+/* Tap-to-show tooltip for .injury-icon/.warn/.traded-badge (see common.js). */
+.tap-tip {
+  position: absolute;
+  z-index: 1000;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* The injury icon is only 14px — give it a bigger invisible tap target. */
+.injury-icon { position: relative; }
+.injury-icon::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}

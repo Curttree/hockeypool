@@ -155,3 +155,53 @@ async function fetchInjuries() {
     return new Map();
   }
 }
+
+// Tap-to-show tooltips. Touch devices have no hover, so the native
+// `title` tooltips on these icons/badges never appear on mobile. Tapping
+// one shows its title text in a small popover instead; tapping anywhere
+// else (or scrolling) closes it. Works on desktop clicks too. Uses event
+// delegation since table rows are re-rendered on every refresh.
+const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge";
+let tapTipEl = null;
+let tapTipAnchor = null;
+
+function hideTapTip() {
+  if (tapTipEl) tapTipEl.hidden = true;
+  tapTipAnchor = null;
+}
+
+function showTapTip(anchor) {
+  if (!tapTipEl) {
+    tapTipEl = document.createElement("div");
+    tapTipEl.className = "tap-tip";
+    tapTipEl.setAttribute("role", "tooltip");
+    document.body.appendChild(tapTipEl);
+  }
+  tapTipEl.textContent = anchor.getAttribute("title");
+  tapTipEl.hidden = false;
+  tapTipAnchor = anchor;
+
+  // Center under the anchor, clamped to the viewport with an 8px margin;
+  // flip above it if there's no room below.
+  const a = anchor.getBoundingClientRect();
+  const t = tapTipEl.getBoundingClientRect();
+  const left = Math.min(Math.max(8, a.left + a.width / 2 - t.width / 2), document.documentElement.clientWidth - t.width - 8);
+  const below = a.bottom + 6;
+  const top = below + t.height > document.documentElement.clientHeight - 8 ? a.top - t.height - 6 : below;
+  tapTipEl.style.left = `${left + window.scrollX}px`;
+  tapTipEl.style.top = `${top + window.scrollY}px`;
+}
+
+document.addEventListener("click", (e) => {
+  const anchor = e.target.closest(TAP_TIP_SELECTOR);
+  if (anchor && anchor.getAttribute("title") && anchor !== tapTipAnchor) {
+    showTapTip(anchor);
+  } else {
+    hideTapTip();
+  }
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTapTip(); });
+// Capture phase so scrolling inside the (horizontally scrollable) table
+// closes it too, not just page scrolls.
+document.addEventListener("scroll", hideTapTip, { capture: true, passive: true });
+window.addEventListener("resize", hideTapTip);
