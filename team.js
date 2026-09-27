@@ -49,7 +49,7 @@ async function init() {
   titleEl.innerHTML = `${team.name}${rosterWarning}`;
   document.title = `Tremblay Hockey Pool - ${team.name}`;
   seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
-  backLinkEl.href = `/?season=${encodeURIComponent(currentSeason)}`;
+  backLinkEl.href = `./?season=${encodeURIComponent(currentSeason)}`;
 
   await loadAndRender(team, true);
   startPolling(team);
