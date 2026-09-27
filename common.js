@@ -10,8 +10,8 @@ const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
 const API_BASE = isLocal ? "" : WORKER_URL;
 
 // In-memory + sessionStorage cache for full-season rosters, so repeated
-// fetches (or a page reload within the same tab) don't re-issue the ~10
-// paginated requests every time within a short window. Kept short so an
+// fetches (or a page reload within the same tab) don't re-download
+// the whole roster every time within a short window. Kept short so an
 // in-progress season's standings feel current.
 const ROSTER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const ROSTER_CACHE_KEY_PREFIX = "nhl-points-roster-cache:";
@@ -43,30 +43,20 @@ function setCachedRoster(season, players) {
   }
 }
 
-// The NHL API caps each request at 100 rows, so a full-season roster
-// (~900+ skaters) needs to be paginated. Sorting by playerId (unique per
-// player) rather than points avoids a real bug: with points as the sort
-// key, players tied on points at a page boundary can be dropped or
-// duplicated, since ties have no guaranteed stable order across separate
-// paginated requests.
+// Fetches the full-season roster (~900+ skaters) in a single request —
+// limit=-1 tells the NHL API to return every row. Don't paginate this:
+// the proxy has no stable unique sort key (it silently ignores unknown
+// ones like "id"), and without one, separately-fetched pages overlap, so
+// some players get duplicated and others dropped entirely.
 async function fetchAllPlayersForSeason(season) {
   const cached = getCachedRoster(season);
   if (cached) return cached;
 
-  const pageSize = 100;
-  const pageParams = (start) => new URLSearchParams({ season, limit: pageSize, start, sort: "id", dir: "ASC" });
-  const first = await fetch(`${API_BASE}/api/players?${pageParams(0)}`).then((r) => r.json());
-  const all = [...first.players];
-  const starts = [];
-  for (let s = pageSize; s < first.total; s += pageSize) starts.push(s);
+  const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
+  const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
 
-  const rest = await Promise.all(starts.map((s) =>
-    fetch(`${API_BASE}/api/players?${pageParams(s)}`).then((r) => r.json())
-  ));
-  rest.forEach((page) => all.push(...page.players));
-
-  setCachedRoster(season, all);
-  return all;
+  setCachedRoster(season, players);
+  return players;
 }
 
 // Groups a roster fetch by lowercased full name, so a name shared by
