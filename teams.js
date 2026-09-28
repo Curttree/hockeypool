@@ -75,16 +75,16 @@ const TEAMS_BY_SEASON = {
         name: "Curtis",
         logo: "images/curtis.png",
         players: ["Macklin Celebrini", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
-          "Matthew Schaefer", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
-          "Easton Cowan", "Pierre-Luc Dubois", { name: "Nick Paul", id: 8477426 }, "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
+          "Kirill Marchenko", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
+          "Michael Misa", "Pierre-Luc Dubois", { name: "Nick Paul", id: 8477426 }, "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
         ]
     },
     {
         name: "Anmol",
         logo: "images/anmol.png",
         players: ["Nick Suzuki", "Kyle Connor", "Jake Guentzel", "Mitch Marner", "Jack Hughes", "Connor Bedard", "Gabriel Vilardi",
-          "Seth Jarvis", "Ivan Demidov", "Auston Matthews", "Zach Hyman", "Nazem Kadri", "Brayden Point", "Jake Neighbours",
-          "Zachary Bolduc", "Blake Lizotte", "Tristan Broz", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos"
+          "Kirill Marchenko", "Ivan Demidov", "Auston Matthews", "Zach Hyman", "Nazem Kadri", "Brayden Point", "Jake Neighbours",
+          "Zachary Bolduc", "Tyler Seguin", "Michael Brandsegg-Nygård", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos"
         ]
     },
     {
