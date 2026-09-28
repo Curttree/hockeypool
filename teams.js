@@ -9,7 +9,7 @@
 //   marker on that team's most recent point in the "Standings Over
 //   Time" chart — falls back to a plain dot if omitted), and a list of
 //   players. A player entry is either a
-//   plain full-name string, or an object { name, injured, team, position }
+//   plain full-name string, or an object { name, injured, team, position, id }
 //   — all fields but `name` optional:
 //     - injured: true force-flags them as injured (see below).
 //     - team / position (e.g. "VAN" / "C"): only needed if this name is
@@ -17,6 +17,12 @@
 //       that automatically (see common.js's resolvePlayer) and shows a
 //       warning naming the conflict, so you'll know to add one or both
 //       of these to pick the right player.
+//     - id: the player's NHL playerId (e.g. 8477426 — it's in the
+//       player's nhl.com URL). Pins the exact player, so they still
+//       resolve if the NHL's spelling of their name differs from `name`
+//       (e.g. it lists "Nicholas Paul"). `name` is still what's shown
+//       and matched against injury reports and trades, so keep it as
+//       the name people know them by.
 //
 // - trades: mid-season roster moves. A trade never removes anyone from
 //   a team's `players` list — the player traded away stays listed (see
@@ -70,7 +76,7 @@ const TEAMS_BY_SEASON = {
         logo: "images/curtis.png",
         players: ["Macklin Celebrini", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
           "Matthew Schaefer", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
-          "Easton Cowan", "Pierre-Luc Dubois", "Nick Paul", "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
+          "Easton Cowan", "Pierre-Luc Dubois", { name: "Nick Paul", id: 8477426 }, "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
         ]
     },
     {
@@ -179,7 +185,7 @@ function computeTeamCost(season, team, previousRosterIndex) {
     const tradedOut = getTradeInfo(season, team.name, name).tradedOut;
     // Team hint is dropped — a player's team last season may well
     // differ from the (current-season) hint in teams.js.
-    const resolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry));
+    const resolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry), playerIdHint(entry));
     const previousPoints = !resolved.ambiguous && resolved.player ? resolved.player.points : null;
     if (previousPoints != null) totalCost += tradedOut ? -previousPoints : previousPoints;
   });
@@ -196,7 +202,7 @@ function computeTeamCost(season, team, previousRosterIndex) {
 // weren't in last season's list either. Anyone who's since left the
 // league is expected to be flagged by hand.
 function existsInRoster(rosterIndex, entry) {
-  const r = resolvePlayer(rosterIndex, playerName(entry), null, playerPositionHint(entry));
+  const r = resolvePlayer(rosterIndex, playerName(entry), null, playerPositionHint(entry), playerIdHint(entry));
   return r.ambiguous || Boolean(r.player);
 }
 
@@ -229,6 +235,10 @@ function playerTeamHint(entry) {
 
 function playerPositionHint(entry) {
   return (typeof entry === "object" && entry.position) || null;
+}
+
+function playerIdHint(entry) {
+  return (typeof entry === "object" && entry.id) || null;
 }
 
 const EMPTY_STAT_LINE = { points: 0, goals: 0, assists: 0 };

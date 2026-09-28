@@ -63,23 +63,46 @@ async function fetchAllPlayersForSeason(season) {
 // more than one player in the league (it happens — e.g. two different
 // "Elias Pettersson"s) can be detected instead of one silently
 // overwriting the other in a plain name->player map.
+//
+// The NHL sometimes lists a nickname in parentheses, e.g.
+// "John (Jack) Roslovic" — those are also indexed as "Jack Roslovic" and
+// "John Roslovic" so either spelling in teams.js still matches. Each
+// player is also indexed by "#<playerId>" for teams.js entries that pin
+// an `id` (see resolvePlayer).
 function buildRosterIndex(roster) {
   const index = new Map();
-  roster.forEach((p) => {
-    const key = p.skaterFullName.toLowerCase();
+  const add = (key, p) => {
     if (!index.has(key)) index.set(key, []);
     index.get(key).push(p);
+  };
+  roster.forEach((p) => {
+    const fullName = p.skaterFullName.toLowerCase();
+    const keys = new Set([fullName]);
+    const nickname = fullName.match(/^(.*?)\s*\(([^)]+)\)\s*(.*)$/);
+    if (nickname) {
+      const [, given, nick, rest] = nickname;
+      keys.add(`${nick} ${rest}`.trim());
+      keys.add(`${given} ${rest}`.trim());
+    }
+    keys.forEach((key) => add(key, p));
+    add(`#${p.playerId}`, p);
   });
   return index;
 }
 
 // Resolves one player by name against a roster index built above.
-// teamHint/positionHint (both optional, e.g. "VAN"/"C" — see teams.js)
-// narrow the match when more than one player shares that name.
+// idHint (optional NHL playerId — see teams.js) wins outright when set,
+// so a player still resolves if the NHL changes how it spells their
+// name. teamHint/positionHint (both optional, e.g. "VAN"/"C") narrow
+// the match when more than one player shares that name.
 // Returns one of:
 //   { player, ambiguous: false }              - resolved (0 or 1 match)
 //   { player: null, ambiguous: true, candidates } - still >1 match
-function resolvePlayer(rosterIndex, name, teamHint, positionHint) {
+function resolvePlayer(rosterIndex, name, teamHint, positionHint, idHint) {
+  if (idHint) {
+    const [player] = rosterIndex.get(`#${idHint}`) || [];
+    return { player: player || null, ambiguous: false };
+  }
   const candidates = rosterIndex.get(name.toLowerCase()) || [];
   if (candidates.length <= 1) {
     return { player: candidates[0] || null, ambiguous: false };

@@ -85,7 +85,7 @@ async function loadAndRender(team, isInitialLoad) {
       const liveInjury = injuries.get(normalizePlayerName(name));
       const manuallyFlagged = playerIsInjured(entry);
       const tradeInfo = getTradeInfo(currentSeason, team.name, name);
-      const resolved = resolvePlayer(rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry));
+      const resolved = resolvePlayer(rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry), playerIdHint(entry));
 
       // A frozen exit snapshot doesn't need a live lookup for scoring —
       // an ambiguous name elsewhere in the league shouldn't block it,
@@ -97,7 +97,7 @@ async function loadAndRender(team, isInitialLoad) {
 
       // Team hint is dropped here — a player's team last season may
       // well differ from the (current-season) hint in teams.js.
-      const previousResolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry));
+      const previousResolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry), playerIdHint(entry));
       const previousPoints = !previousResolved.ambiguous && previousResolved.player
         ? previousResolved.player.points
         : null;

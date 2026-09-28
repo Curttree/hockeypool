@@ -35,7 +35,7 @@ function computeStandings(season, teams, roster, previousRoster) {
         }
 
         const { player, ambiguous: isAmbiguous } = resolvePlayer(
-          rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry)
+          rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry), playerIdHint(entry)
         );
 
         if (isAmbiguous) {
