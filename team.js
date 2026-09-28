@@ -5,6 +5,41 @@ const titleEl = document.getElementById("team-title");
 const table = document.getElementById("team-table");
 const tbody = table.querySelector("tbody");
 const tfoot = table.querySelector("tfoot");
+const lastNightHeaderEl = document.getElementById("last-night-header");
+
+// Daily per-player season point totals, written by the snapshot Action
+// (.github/scripts/snapshot-standings.mjs) — { [season]: [{ date, points:
+// { [playerId]: points } }] }, oldest first, last two snapshots only.
+const PLAYER_POINTS_URL = "data/player-points.json";
+
+// Points scored between the two most recent snapshots. The Action runs
+// overnight after the last game ends, so that's "last night" (or several
+// nights, if a run was missed — the header tooltip shows the dates).
+// Returns null when it can't be computed: fewer than two snapshots, or
+// a player traded away (their credit is frozen, so nothing new counts).
+function lastNightPoints(snapshots, playerId, tradeInfo) {
+  if (!snapshots || snapshots.length < 2 || tradeInfo.tradedOut) return null;
+  const [previous, latest] = snapshots.slice(-2);
+  if (!playerId) return 0; // no NHL record at all — hasn't played
+  const latestPoints = latest.points[playerId] || 0;
+  let base = previous.points[playerId] || 0;
+  // Acquired mid-season: only points after the trade count, so a trade
+  // made between the two snapshots mustn't credit pre-trade points.
+  if (tradeInfo.tradedIn) base = Math.max(base, tradeInfo.entry.points);
+  return Math.max(0, latestPoints - base);
+}
+
+function updateLastNightHeader(snapshots) {
+  // Missing only if a browser pairs a cached older team.html with this
+  // script right after a deploy — not worth failing the page over.
+  if (!lastNightHeaderEl) return;
+  if (!snapshots || snapshots.length < 2) {
+    lastNightHeaderEl.title = "Points from the most recent night of games — available after the first two daily snapshots";
+    return;
+  }
+  const [previous, latest] = snapshots.slice(-2);
+  lastNightHeaderEl.title = `Points from games between the ${previous.date} and ${latest.date} daily snapshots`;
+}
 
 function formatSeasonLabel(seasonId) {
   const start = seasonId.slice(0, 4);
@@ -46,7 +81,9 @@ async function init() {
   const rosterWarning = activeCount !== EXPECTED_ROSTER_SIZE
     ? ` <span class="warn" title="Roster has ${activeCount} current players, not ${EXPECTED_ROSTER_SIZE} (traded-away players don't count)">⚠</span>`
     : "";
-  titleEl.innerHTML = `${team.name}${rosterWarning}`;
+  const logoSrc = getTeamLogo(currentSeason, team.name);
+  const logo = logoSrc ? `<img class="team-title-logo" src="${logoSrc}" alt="" width="40" height="40">` : "";
+  titleEl.innerHTML = `${logo}<span>${team.name}${rosterWarning}</span>`;
   document.title = `Tremblay Hockey Pool - ${team.name}`;
   seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
   backLinkEl.href = `./?season=${encodeURIComponent(currentSeason)}`;
@@ -69,14 +106,18 @@ function startPolling(team) {
 
 async function loadAndRender(team, isInitialLoad) {
   try {
-    const [roster, injuries, previousRoster] = await Promise.all([
+    const [roster, injuries, previousRoster, pointsHistory] = await Promise.all([
       fetchAllPlayersForSeason(currentSeason),
       fetchInjuries(),
       // "Cost" is a nice-to-have, not part of scoring — a failure here
       // (e.g. no data at all for the prior season) shouldn't block the
       // rest of the page from rendering.
       fetchAllPlayersForSeason(previousSeasonId(currentSeason)).catch(() => []),
+      // Same for "Last Night", which may simply not exist yet.
+      fetch(PLAYER_POINTS_URL).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
+    const pointsSnapshots = pointsHistory[currentSeason];
+    updateLastNightHeader(pointsSnapshots);
     const rosterIndex = buildRosterIndex(roster);
     const previousRosterIndex = buildRosterIndex(previousRoster);
 
@@ -98,9 +139,8 @@ async function loadAndRender(team, isInitialLoad) {
       // Team hint is dropped here — a player's team last season may
       // well differ from the (current-season) hint in teams.js.
       const previousResolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry), playerIdHint(entry));
-      const previousPoints = !previousResolved.ambiguous && previousResolved.player
-        ? previousResolved.player.points
-        : null;
+      const previousPlayer = previousResolved.ambiguous ? null : previousResolved.player;
+      const previousPoints = previousPlayer ? previousPlayer.points : null;
 
       // No live stats yet is fine for anyone who was around last season.
       const noDataExpected = existsInRoster(previousRosterIndex, entry);
@@ -114,6 +154,14 @@ async function loadAndRender(team, isInitialLoad) {
         ambiguous,
         credited,
         previousPoints,
+        previousTeam: previousPlayer ? previousPlayer.teamAbbrevs : null,
+        lastNight: ambiguous
+          ? null
+          : lastNightPoints(
+            pointsSnapshots,
+            (player && player.playerId) || (previousPlayer && previousPlayer.playerId) || playerIdHint(entry),
+            tradeInfo
+          ),
         injured: manuallyFlagged || Boolean(liveInjury),
         injuryLabel: liveInjury ? (liveInjury.comment || liveInjury.status) : "Injured",
       };
@@ -128,11 +176,35 @@ async function loadAndRender(team, isInitialLoad) {
   }
 }
 
+// NHL team logo from the NHL's own asset CDN (the "_dark" variants are
+// the ones drawn for dark backgrounds). teamAbbrevs lists every team a
+// player suited up for that season, e.g. "TOR,VGK" — the last one is
+// their most recent. A logo that fails to load just removes itself,
+// leaving the abbreviation.
+function nhlTeamLogo(teamAbbrevs) {
+  const abbrev = teamAbbrevs.split(",").pop().trim();
+  return `<img class="nhl-logo" src="https://assets.nhle.com/logos/nhl/svg/${abbrev}_dark.svg" alt="" width="26" height="26" onerror="this.remove()">`;
+}
+
 function renderTeam(rows, totalCost) {
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
+  let totalLastNight = null; // stays null (shown as "—") until any row has a value
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, noDataExpected }) => {
+  // Before a player's first game of the season (e.g. preseason) there's
+  // no current-season record to read their team from, so fall back to
+  // last season's team, muted and labelled as such. Anyone who moved in
+  // the offseason shows their old team until they play.
+  const previousSeasonLabel = formatSeasonLabel(previousSeasonId(currentSeason));
+  const teamCell = (player, previousTeam) => {
+    if (player) return `<td class="nhl-team">${nhlTeamLogo(player.teamAbbrevs)}${player.teamAbbrevs}</td>`;
+    if (previousTeam) {
+      return `<td class="nhl-team"><span class="prev-team" title="${previousSeasonLabel} team — updates once they play this season">${nhlTeamLogo(previousTeam)}${previousTeam}</span></td>`;
+    }
+    return "<td>—</td>";
+  };
+
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, noDataExpected }) => {
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
     const acquiredBadge = tradedIn
@@ -143,6 +215,8 @@ function renderTeam(rows, totalCost) {
       : "";
     const displayName = player ? shortName(player.skaterFullName, player.lastName) : name;
     const costCell = `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
+    if (lastNight != null) totalLastNight = (totalLastNight || 0) + lastNight;
+    const lastNightCell = `<td class="num last-night${lastNight > 0 ? " scored" : ""}">${lastNight == null ? "—" : lastNight}</td>`;
 
     const tr = document.createElement("tr");
     if (credited) {
@@ -151,11 +225,12 @@ function renderTeam(rows, totalCost) {
       totalAssists += credited.assists;
       tr.innerHTML = `
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}</td>
-        <td>${player ? player.teamAbbrevs : "—"}</td>
-        ${costCell}
+        ${teamCell(player, previousTeam)}
         <td class="num score">${credited.points}</td>
+        ${lastNightCell}
         <td class="num">${credited.goals}</td>
         <td class="num">${credited.assists}</td>
+        ${costCell}
       `;
     } else {
       const warningTitle = ambiguous
@@ -166,11 +241,12 @@ function renderTeam(rows, totalCost) {
         : ` <span class="warn" title="${warningTitle}">⚠</span>`;
       tr.innerHTML = `
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}${warningIcon}</td>
-        <td>—</td>
-        ${costCell}
+        ${teamCell(null, ambiguous ? null : previousTeam)}
         <td class="num score">0</td>
+        ${lastNightCell}
         <td class="num">0</td>
         <td class="num">0</td>
+        ${costCell}
       `;
     }
     tbody.appendChild(tr);
@@ -179,10 +255,11 @@ function renderTeam(rows, totalCost) {
   tfoot.innerHTML = `
     <tr class="totals-row">
       <td colspan="2">Total</td>
-      <td class="num">${totalCost.toLocaleString()}</td>
       <td class="num score">${totalScore.toLocaleString()}</td>
+      <td class="num last-night${totalLastNight > 0 ? " scored" : ""}">${totalLastNight == null ? "—" : totalLastNight.toLocaleString()}</td>
       <td class="num">${totalGoals.toLocaleString()}</td>
       <td class="num">${totalAssists.toLocaleString()}</td>
+      <td class="num">${totalCost.toLocaleString()}</td>
     </tr>
   `;
 

@@ -10,6 +10,12 @@ import { dirname } from "path";
 
 const SITE_URL = "https://curttree.github.io/hockeypool/";
 const DATA_PATH = "../../data/standings-history.json";
+// Every skater's season point total as of each snapshot, keyed by NHL
+// playerId (stable across name changes). The team page's "Last Night"
+// column is the latest snapshot minus the one before it, so only the
+// two most recent are kept per season to keep the file small.
+const PLAYER_POINTS_PATH = "../../data/player-points.json";
+const PLAYER_POINTS_KEEP = 2;
 
 async function captureSnapshot() {
   const browser = await chromium.launch();
@@ -26,38 +32,59 @@ async function captureSnapshot() {
       }))
     );
 
-    return { season, standings };
+    // Reuses the page's own roster fetch (common.js) rather than calling
+    // the API separately. Players with 0 points are left out — a missing
+    // id just means 0.
+    const playerPoints = await page.evaluate(async (s) => {
+      const roster = await fetchAllPlayersForSeason(s);
+      return Object.fromEntries(roster.filter((p) => p.points > 0).map((p) => [p.playerId, p.points]));
+    }, season);
+
+    return { season, standings, playerPoints };
   } finally {
     await browser.close();
   }
 }
 
-function loadHistory() {
-  if (!existsSync(DATA_PATH)) return {};
-  return JSON.parse(readFileSync(DATA_PATH, "utf8"));
+function loadJson(path) {
+  if (!existsSync(path)) return {};
+  return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function saveHistory(history) {
-  mkdirSync(dirname(DATA_PATH), { recursive: true });
-  writeFileSync(DATA_PATH, JSON.stringify(history, null, 2) + "\n");
+function saveJson(path, data) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
 }
 
-const { season, standings } = await captureSnapshot();
+// Adds the entry for entry.date to a date-sorted array, replacing any
+// existing one — re-running the same day (e.g. manual dispatch)
+// overwrites, doesn't duplicate.
+function upsertByDate(entries, entry) {
+  const existingIndex = entries.findIndex((e) => e.date === entry.date);
+  if (existingIndex >= 0) entries[existingIndex] = entry;
+  else entries.push(entry);
+  entries.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const { season, standings, playerPoints } = await captureSnapshot();
 if (!standings.length) {
   throw new Error("Scraped zero teams from the standings table — page likely didn't render as expected.");
 }
 
-const history = loadHistory();
-if (!history[season]) history[season] = [];
-
 const today = new Date().toISOString().slice(0, 10);
-const entry = { date: today, standings };
-const existingIndex = history[season].findIndex((e) => e.date === today);
-if (existingIndex >= 0) {
-  history[season][existingIndex] = entry; // re-running the same day (e.g. manual dispatch) overwrites, doesn't duplicate
-} else {
-  history[season].push(entry);
-}
 
-saveHistory(history);
-console.log(`Snapshotted ${standings.length} teams for season ${season} on ${today}.`);
+const history = loadJson(DATA_PATH);
+if (!history[season]) history[season] = [];
+upsertByDate(history[season], { date: today, standings });
+saveJson(DATA_PATH, history);
+
+const pointsHistory = loadJson(PLAYER_POINTS_PATH);
+if (!pointsHistory[season]) pointsHistory[season] = [];
+upsertByDate(pointsHistory[season], { date: today, points: playerPoints });
+pointsHistory[season] = pointsHistory[season].slice(-PLAYER_POINTS_KEEP);
+saveJson(PLAYER_POINTS_PATH, pointsHistory);
+
+console.log(
+  `Snapshotted ${standings.length} teams and ${Object.keys(playerPoints).length} scoring skaters ` +
+  `for season ${season} on ${today}.`
+);

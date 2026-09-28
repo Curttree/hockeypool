@@ -184,7 +184,7 @@ async function fetchInjuries() {
 // one shows its title text in a small popover instead; tapping anywhere
 // else (or scrolling) closes it. Works on desktop clicks too. Uses event
 // delegation since table rows are re-rendered on every refresh.
-const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge";
+const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge, .prev-team, #last-night-header";
 let tapTipEl = null;
 let tapTipAnchor = null;
 

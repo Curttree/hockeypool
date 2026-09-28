@@ -68,6 +68,33 @@ h1 {
   margin: 0;
 }
 
+/* Team page: pool team's logo beside its name. */
+#team-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.team-title-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* NHL team logo beside the abbreviation in the team page's Team column. */
+.nhl-logo {
+  width: 26px;
+  height: 26px;
+  margin: -4px 4px -4px -2px;
+  vertical-align: middle;
+}
+.nhl-team { white-space: nowrap; }
+
+/* Team page "Last Night" column — muted unless they actually scored. */
+.last-night { color: var(--muted); }
+.last-night.scored { color: var(--text); font-weight: 700; }
+
 .season-label {
   color: var(--muted);
   font-size: 0.9rem;
@@ -297,6 +324,13 @@ tbody tr:hover { background: #232838; }
   vertical-align: middle;
 }
 
+/* Last season's team, shown before a player's first game this season. */
+.prev-team {
+  color: var(--muted);
+  font-style: italic;
+  cursor: help;
+}
+
 .traded-badge {
   display: inline-block;
   margin-left: 6px;
@@ -480,3 +514,4 @@ tbody tr:hover { background: #232838; }
   position: absolute;
   inset: -10px;
 }
+#last-night-header { cursor: help; }
