@@ -271,8 +271,7 @@ tbody tr:hover { background: #232838; }
   display: block;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .team-name { font-weight: 600; }

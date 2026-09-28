@@ -67,7 +67,7 @@ const TEAMS_BY_SEASON = {
     [
     {
         name: "Curtis",
-        logo: "images/curtis.svg",
+        logo: "images/curtis.png",
         players: ["Macklin Celebrini", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
           "Matthew Schaefer", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
           "Easton Cowan", "Pierre-Luc Dubois", "Nick Paul", "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
@@ -75,7 +75,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Anmol",
-        logo: "images/anmol.svg",
+        logo: "images/anmol.png",
         players: ["Nick Suzuki", "Kyle Connor", "Jake Guentzel", "Mitch Marner", "Jack Hughes", "Connor Bedard", "Gabriel Vilardi",
           "Seth Jarvis", "Ivan Demidov", "Auston Matthews", "Zach Hyman", "Nazem Kadri", "Brayden Point", "Jake Neighbours",
           "Zachary Bolduc", "Blake Lizotte", "Tristan Broz", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos"
@@ -83,7 +83,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Jordan",
-        logo: "images/jordan.svg",
+        logo: "images/jordan.png",
         players: ["Connor McDavid", "David Pastrnak", "Leon Draisaitl", "Connor Bedard", "Gabriel Vilardi", "Brock Nelson", "Bryan Rust",
           "Will Cuylle", "Travis Sanheim", "Dmitry Orlov", "K'Andre Miller", "Jack Roslovic", "Sean Monahan", "Brent Burns",
           "Gabriel Landeskog", "Philip Broberg", "Berkly Catton", "Oskar Sundqvist", "Wyatt Kaiser", "Kirby Dach"
@@ -91,7 +91,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Hannah",
-        logo: "images/hannah.svg",
+        logo: "images/hannah.png",
         players: ["Nathan MacKinnon","Evan Bouchard", "William Nylander", "Jack Hughes", "Sidney Crosby", "Mark Stone", "Leo Carlsson",
           "Ivan Barbashev", "Auston Matthews", "J.T. Miller", "Vladimir Tarasenko", "Boone Jenner", "Michael Amadio", "Andre Burakovsky",
           "Jake Evans", "Nick Cousins", "Tyler Seguin", "Barclay Goodrow", "William Karlsson", "Nils Hoglander"
@@ -99,7 +99,7 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Gayle",
-        logo: "images/gayle.svg",
+        logo: "images/gayle.png",
         players: ["Connor McDavid", "Nathan MacKinnon", "William Nylander", "Mika Zibanejad", "Filip Forsberg", "Juraj Slafkovský",
           "Nikolaj Ehlers", "Andrei Svechnikov", "Kirill Marchenko", "Miro Heiskanen", "Mikhail Sergachev", "Shayne Gostisbehere", "Oskar Sundqvist",
           "Uvis Balinskis", "Juuso Parssinen", "Dominik Shine", "Vladislav Kolyachonok", "Ivan Miroshnichenko", "Maksim Tsyplakov",
@@ -108,14 +108,14 @@ const TEAMS_BY_SEASON = {
     },
     {
         name: "Luke",
-        logo: "images/luke.svg",
+        logo: "images/luke.png",
         players:["Connor McDavid", "Nikita Kucherov", "Nathan MacKinnon", "Connor Bedard", "Sidney Crosby", "Alex Ovechkin", "Brad Marchand",
         "Luke Hughes", "Marco Rossi", "Ridly Greig", "Justin Brazeau", "Cole Perfetti", "Bobby Brink", "David Perron",
         "Jaden Schwartz", "Jonatan Berggren", "Matvei Gridin", "Pierre-Luc Dubois", "Ryan Ufko", "Porter Martone"]
     },
     {
         name: "Rick",
-        logo: "images/rick.svg",
+        logo: "images/rick.png",
         players:["Leon Draisaitl", "Kirill Kaprizov", "William Nylander", "Jack Hughes", "Mikko Rantanen", "Robert Thomas", "Sam Reinhart", "Brady Tkachuk", "Auston Matthews",
         "Zach Hyman", "Jimmy Snuggerud", "Brayden Point", "Jordan Kyrou", "Matthew Tkachuk", "Josh Norris", "Gabe Perreault", "Pierre-Luc Dubois",
         "Tyler Seguin", "Porter Martone", "Ilya Protas"]
