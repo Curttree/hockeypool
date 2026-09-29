@@ -236,9 +236,65 @@ window.addEventListener("resize", hideTapTip);
 // does to these tables rather than removing them from the page.
 function updateScrollShadows() {
   document.querySelectorAll(".table-scroll").forEach((el) => {
-    el.classList.toggle("is-scrollable", el.scrollWidth > el.clientWidth + 1);
+    const overflowing = el.scrollWidth > el.clientWidth + 1;
+    // Only shown at the untouched starting position — once the user has
+    // scrolled at all, they already know it's scrollable, so drop the
+    // fade rather than have it sit over the middle of the content.
+    el.classList.toggle("is-scrollable", overflowing && el.scrollLeft <= 1);
   });
 }
 window.addEventListener("resize", updateScrollShadows);
+// Capture phase so a scroll inside the table itself (not just the page)
+// is caught too.
+document.addEventListener("scroll", updateScrollShadows, { capture: true, passive: true });
 new MutationObserver(updateScrollShadows).observe(document.body, { childList: true, subtree: true });
 updateScrollShadows();
+
+// Light/dark toggle. The saved preference is also applied synchronously by
+// an inline <script> at the top of each page's <head> (before style.css
+// takes effect), so there's no flash of the wrong theme on load — this
+// just keeps that in sync and wires up the button.
+const THEME_KEY = "nhl-points-theme";
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.querySelectorAll(".theme-toggle").forEach((btn) => {
+    // Icon shows the theme a click switches *to*, so dark shows a sun
+    // and light shows a moon — both plain currentColor strokes, so they
+    // pick up the same muted/text colors as the rest of the nav instead
+    // of an emoji's own fixed colors.
+    const showSun = theme !== "light";
+    // Not `.hidden = ...` — SVGElement doesn't reflect that IDL property
+    // to the actual attribute the way HTMLElement does, so it would
+    // silently no-op and never actually change what's rendered.
+    btn.querySelector(".icon-sun").toggleAttribute("hidden", !showSun);
+    btn.querySelector(".icon-moon").toggleAttribute("hidden", showSun);
+    btn.setAttribute("aria-label", theme === "light" ? "Switch to dark theme" : "Switch to light theme");
+  });
+}
+
+function initTheme() {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(THEME_KEY);
+  } catch {
+    // ignore (storage disabled)
+  }
+  applyTheme(saved === "light" ? "light" : "dark");
+
+  document.querySelectorAll(".theme-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch {
+        // ignore (storage disabled)
+      }
+      applyTheme(next);
+      // Lets the standings chart (Chart.js colors aren't CSS-driven) know
+      // to re-render itself with the new theme's colors.
+      window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: next } }));
+    });
+  });
+}
+initTheme();

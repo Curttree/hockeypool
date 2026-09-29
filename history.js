@@ -134,6 +134,19 @@ function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
     .filter(Boolean);
 }
 
+// Chart.js colors are set via JS options, not CSS, so they don't follow
+// the light/dark toggle on their own — reading the current theme's CSS
+// variables here (rather than duplicating hex values) keeps this in sync
+// with style.css automatically, whichever theme is active.
+function chartChromeColors() {
+  const styles = getComputedStyle(document.documentElement);
+  return {
+    text: styles.getPropertyValue("--text").trim(),
+    muted: styles.getPropertyValue("--muted").trim(),
+    border: styles.getPropertyValue("--border").trim(),
+  };
+}
+
 function filterByRange(entries, range) {
   const days = RANGE_DAYS[range];
   if (!days || entries.length === 0) return entries;
@@ -231,6 +244,8 @@ async function renderChart(season) {
   chartHint.hidden = false;
   projectionNote.hidden = !addedProjection;
 
+  const chromeColors = chartChromeColors();
+
   if (chart) chart.destroy();
   chart = new Chart(chartCanvas, {
     type: "line",
@@ -244,7 +259,7 @@ async function renderChart(season) {
       plugins: {
         legend: {
           labels: {
-            color: "#e8eaed",
+            color: chromeColors.text,
             // Projection datasets ride along with their team's real
             // dataset (see onClick below) — they don't need their own
             // legend entry too.
@@ -275,8 +290,11 @@ async function renderChart(season) {
         },
       },
       scales: {
-        x: { ticks: { color: "#9aa2af" }, grid: { color: "#2a2f3a" } },
-        y: { min: 0, ticks: { color: "#9aa2af" }, grid: { color: "#2a2f3a" } },
+        x: { ticks: { color: chromeColors.muted }, grid: { color: chromeColors.border } },
+        // precision: 0 keeps auto-picked tick steps whole numbers — points
+        // are always integers, so a fractional step (e.g. while every
+        // score is still 0 before the season starts) just looks odd.
+        y: { min: 0, ticks: { color: chromeColors.muted, precision: 0 }, grid: { color: chromeColors.border } },
       },
     },
   });
@@ -292,6 +310,9 @@ async function initHistory() {
   renderChart(seasonSelect.value);
   seasonSelect.addEventListener("change", () => renderChart(seasonSelect.value));
   rangeSelect.addEventListener("change", () => renderChart(seasonSelect.value));
+  // Chart.js colors are baked into the chart at construction time, so a
+  // theme flip needs an explicit re-render to pick up the new palette.
+  window.addEventListener("themechange", () => renderChart(seasonSelect.value));
 }
 
 initHistory();

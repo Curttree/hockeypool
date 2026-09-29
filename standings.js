@@ -59,6 +59,34 @@ function computeStandings(season, teams, roster, previousRoster) {
     .sort((a, b) => b.score - a.score);
 }
 
+// Gold/silver/bronze medal badge for the top 3 ranks — a flat colored
+// disc with the number in a darker shade of the same hue, so it reads
+// clearly against either a light or dark table background regardless
+// of which theme is active (the badge's own colors provide the contrast,
+// not the page's).
+const MEDAL_STYLES = {
+  1: { fill: "#f5c518", ring: "#c99a00", text: "#5c4400", label: "1st place" },
+  2: { fill: "#c9ccd1", ring: "#9a9ea6", text: "#44474d", label: "2nd place" },
+  3: { fill: "#d7883f", ring: "#a85f22", text: "#4a2c0d", label: "3rd place" },
+};
+
+function rankBadge(rank) {
+  const s = MEDAL_STYLES[rank];
+  if (!s) return null;
+  return `<svg class="rank-medal" viewBox="0 0 32 32" width="26" height="26" role="img" aria-label="${s.label}">
+    <circle cx="16" cy="16" r="14" fill="${s.fill}" stroke="${s.ring}" stroke-width="2"/>
+    <text x="16" y="21" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="${s.text}" text-anchor="middle">${rank}</text>
+  </svg>`;
+}
+
+// Wraps either the medal or a plain number in the same fixed-size box, so
+// every row's rank cell is the same height and everything lines up —
+// without it, rows 1-3 (26px icon) are taller than the rest (just text)
+// and the whole column looks unevenly spaced.
+function rankCell(rank) {
+  return `<span class="rank-value">${rankBadge(rank) || rank}</span>`;
+}
+
 function renderStandings(standings, season) {
   const topScore = standings.length ? standings[0].score : 0;
 
@@ -86,7 +114,7 @@ function renderStandings(standings, season) {
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="num">${i + 1}</td>
+      <td class="num">${rankCell(i + 1)}</td>
       <td class="team-logo-col">${logo}</td>
       <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
       <td class="num score">${team.score.toLocaleString()}</td>

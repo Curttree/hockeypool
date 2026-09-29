@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   --bg: #0f1115;
   --panel: #171a21;
   --border: #2a2f3a;
@@ -7,6 +7,27 @@
   --muted: #9aa2af;
   --accent: #4ea1ff;
   --row-alt: #1c2029;
+  --row-hover: #232838;
+  --danger: #ff5c5c;
+  --danger-hover-bg: rgba(255, 107, 107, 0.1);
+  --danger-hover-text: #ff6b6b;
+  --scroll-fade: rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --border: #dde1e6;
+  --text: #1a1d24;
+  --muted: #5b6270;
+  --accent: #1d6fd6;
+  --row-alt: #f0f2f5;
+  --row-hover: #e8ecf1;
+  --danger: #d64545;
+  --danger-hover-bg: rgba(214, 69, 69, 0.1);
+  --danger-hover-text: #c23a3a;
+  --scroll-fade: rgba(255, 255, 255, 0.9);
 }
 
 * { box-sizing: border-box; }
@@ -51,6 +72,26 @@ body {
 
 .site-nav-links a:hover {
   color: var(--text);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+}
+
+/* Browsers don't reliably apply the default [hidden]{display:none} rule
+   to inline <svg> elements, so it's asserted explicitly here. */
+.theme-toggle svg[hidden] {
+  display: none;
 }
 
 header {
@@ -263,7 +304,7 @@ main {
   right: 0;
   bottom: 0;
   width: 28px;
-  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.5));
+  background: linear-gradient(to right, transparent, var(--scroll-fade));
   pointer-events: none;
   border-radius: 0 8px 8px 0;
 }
@@ -294,6 +335,14 @@ th {
 
 .num { text-align: right; }
 
+.rank-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+
 th.sortable {
   cursor: pointer;
   user-select: none;
@@ -310,7 +359,7 @@ th.sortable:hover {
 }
 
 tbody tr:nth-child(even) { background: var(--row-alt); }
-tbody tr:hover { background: #232838; }
+tbody tr:hover { background: var(--row-hover); }
 
 #players-table tbody td:nth-child(3) { font-weight: 600; }
 #players-table tbody td:nth-child(9) { color: var(--accent); font-weight: 700; }
@@ -432,7 +481,7 @@ tbody tr:hover { background: #232838; }
 }
 
 .selected-header h2.title-high {
-  color: #ff5c5c;
+  color: var(--danger);
 }
 
 .selected-total {
@@ -445,7 +494,7 @@ tbody tr:hover { background: #232838; }
 }
 
 .selected-total.total-high strong {
-  color: #ff5c5c;
+  color: var(--danger);
 }
 
 .selected-actions {
@@ -488,7 +537,7 @@ tbody tr:hover { background: #232838; }
 
 .chart-section h2 {
   font-size: 1rem;
-  margin: 0 0 12px;
+  margin: 0;
 }
 
 .chart-container {
@@ -515,8 +564,8 @@ tbody tr:hover { background: #232838; }
 }
 
 .remove-btn:hover {
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.1);
+  color: var(--danger-hover-text);
+  background: var(--danger-hover-bg);
 }
 
 /* Tap-to-show tooltip for .injury-icon/.warn/.traded-badge (see common.js). */
