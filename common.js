@@ -228,3 +228,17 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTapTip
 // closes it too, not just page scrolls.
 document.addEventListener("scroll", hideTapTip, { capture: true, passive: true });
 window.addEventListener("resize", hideTapTip);
+
+// Adds a right-edge fade to any `.table-scroll` container that's
+// actually scrollable, as a hint there's more to see — recalculated on
+// resize and whenever a table's content changes (season switches,
+// filtering, live score updates, etc.), since that's all this app ever
+// does to these tables rather than removing them from the page.
+function updateScrollShadows() {
+  document.querySelectorAll(".table-scroll").forEach((el) => {
+    el.classList.toggle("is-scrollable", el.scrollWidth > el.clientWidth + 1);
+  });
+}
+window.addEventListener("resize", updateScrollShadows);
+new MutationObserver(updateScrollShadows).observe(document.body, { childList: true, subtree: true });
+updateScrollShadows();

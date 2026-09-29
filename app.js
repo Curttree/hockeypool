@@ -267,6 +267,7 @@ function buildSeasonOptions(lastSeasonId) {
 async function loadPlayers() {
   statusEl.hidden = false;
   statusEl.textContent = "Loading…";
+  statusEl.classList.add("loading-pulse");
   table.hidden = true;
   pager.hidden = true;
 
@@ -288,6 +289,7 @@ async function loadPlayers() {
       const filters = [];
       if (search) filters.push(`name matching "${search}"`);
       if (maxPoints !== "") filters.push(`points ≤ ${maxPoints}`);
+      statusEl.classList.remove("loading-pulse");
       statusEl.textContent = filters.length
         ? `No players found for ${filters.join(" and ")}.`
         : "No data found for that season.";
@@ -337,6 +339,7 @@ async function loadPlayers() {
     table.hidden = false;
     pager.hidden = false;
   } catch (err) {
+    statusEl.classList.remove("loading-pulse");
     statusEl.textContent = `Error: ${err.message}`;
   }
 }

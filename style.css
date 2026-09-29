@@ -170,6 +170,18 @@ main {
   color: var(--muted);
 }
 
+/* Applied only while an element still shows its initial "Loading…" text —
+   removed by the page's own JS as soon as that's replaced by real
+   content, an error, or an empty-state message. */
+.loading-pulse {
+  animation: loading-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .pager {
   display: flex;
   align-items: center;
@@ -237,8 +249,23 @@ main {
 }
 
 .table-scroll {
+  position: relative;
   overflow-x: auto;
   border-radius: 8px;
+}
+
+/* Hints there's more to scroll to — added/removed by common.js based on
+   whether the table actually overflows its container. */
+.table-scroll.is-scrollable::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+  border-radius: 0 8px 8px 0;
 }
 
 table {

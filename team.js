@@ -71,6 +71,7 @@ async function init() {
 
   const team = findTeamByName(currentSeason, teamName);
   if (!team) {
+    statusEl.classList.remove("loading-pulse");
     statusEl.textContent = teamName
       ? `No team found named "${teamName}" in the ${formatSeasonLabel(currentSeason)} season.`
       : "No team specified.";
@@ -172,7 +173,10 @@ async function loadAndRender(team, isInitialLoad) {
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
-    if (isInitialLoad) statusEl.textContent = `Error loading team: ${err.message}`;
+    if (isInitialLoad) {
+      statusEl.classList.remove("loading-pulse");
+      statusEl.textContent = `Error loading team: ${err.message}`;
+    }
   }
 }
 

@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tremblay Hockey Pool - Standings</title>
+<meta name="description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tremblay Hockey Pool">
+<meta property="og:title" content="Tremblay Hockey Pool - Standings">
+<meta property="og:description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
+<meta property="og:image" content="https://curttree.github.io/hockeypool/og-image.png">
+<meta property="og:url" content="https://curttree.github.io/hockeypool/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tremblay Hockey Pool - Standings">
+<meta name="twitter:description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
+<meta name="twitter:image" content="https://curttree.github.io/hockeypool/og-image.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,7 +40,7 @@
   </header>
 
   <main>
-    <p id="status">Loading…</p>
+    <p id="status" class="loading-pulse">Loading…</p>
     <div class="table-scroll">
       <table id="standings-table" hidden>
         <thead>
@@ -56,7 +70,7 @@
           </select>
         </div>
       </div>
-      <p id="chart-status" class="muted-note">Loading history…</p>
+      <p id="chart-status" class="muted-note loading-pulse">Loading history…</p>
       <div class="chart-container">
         <canvas id="standings-chart" hidden></canvas>
       </div>

@@ -123,6 +123,7 @@ async function loadAndRender(isInitialLoad) {
   if (isInitialLoad) {
     statusEl.hidden = false;
     statusEl.textContent = "Loading standings…";
+    statusEl.classList.add("loading-pulse");
   }
 
   try {
@@ -137,7 +138,10 @@ async function loadAndRender(isInitialLoad) {
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
-    if (isInitialLoad) statusEl.textContent = `Error loading standings: ${err.message}`;
+    if (isInitialLoad) {
+      statusEl.classList.remove("loading-pulse");
+      statusEl.textContent = `Error loading standings: ${err.message}`;
+    }
   }
 }
 

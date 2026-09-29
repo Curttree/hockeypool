@@ -163,6 +163,7 @@ async function renderChart(season) {
     chartHint.hidden = true;
     projectionNote.hidden = true;
     chartStatus.hidden = false;
+    chartStatus.classList.remove("loading-pulse");
     if (allEntries.length === 0) {
       chartStatus.textContent = "No history yet for this season — check back after the first daily snapshot.";
     } else if (allEntries.length === 1) {
@@ -236,6 +237,10 @@ async function renderChart(season) {
     data: { labels, datasets },
     options: {
       responsive: true,
+      // Without this, Chart.js holds a fixed 2:1 aspect ratio — on a
+      // narrow (mobile) width that caps the canvas well short of the
+      // container's actual height, leaving dead space below the chart.
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           labels: {
@@ -271,7 +276,7 @@ async function renderChart(season) {
       },
       scales: {
         x: { ticks: { color: "#9aa2af" }, grid: { color: "#2a2f3a" } },
-        y: { ticks: { color: "#9aa2af" }, grid: { color: "#2a2f3a" } },
+        y: { min: 0, ticks: { color: "#9aa2af" }, grid: { color: "#2a2f3a" } },
       },
     },
   });
