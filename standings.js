@@ -187,42 +187,32 @@ function animateRowReorder(oldPositions) {
 // Kept in sync with the longest mood animation in style.css, so the
 // classes/effects are cleaned up right as it finishes.
 const MOOD_MS = 3000;
-const HISTORY_URL_FOR_MOODS = "data/standings-history.json";
+// Each browser remembers the ranks it last showed (per season), so a
+// returning visitor's logos react only to what changed since *their* last
+// look. localStorage can be missing or blocked (private windows, etc.) —
+// that just means no moods, never a broken page.
+const RANKS_CACHE_KEY_PREFIX = "hockeypool-ranks:";
+
+function loadCachedRanks(season) {
+  try {
+    const raw = localStorage.getItem(RANKS_CACHE_KEY_PREFIX + season);
+    return raw ? new Map(Object.entries(JSON.parse(raw))) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedRanks(season, ranks) {
+  try {
+    localStorage.setItem(RANKS_CACHE_KEY_PREFIX + season, JSON.stringify(Object.fromEntries(ranks)));
+  } catch {
+    // ignore (storage full/disabled)
+  }
+}
 
 // Each team's rank as of the last render, for spotting live rank changes
 // between polls. Reset alongside previousScores.
 let previousRanks = null;
-
-// Map of team name -> rank for a list of { name, score }, using the same
-// competition ranking as computeStandings (ties share a rank).
-function competitionRanks(teams) {
-  const sorted = teams.slice().sort((a, b) => b.score - a.score);
-  const ranks = new Map();
-  sorted.forEach((t, i) => {
-    ranks.set(t.name, i > 0 && t.score === sorted[i - 1].score ? ranks.get(sorted[i - 1].name) : i + 1);
-  });
-  return ranks;
-}
-
-// What to compare the current ranks against on a fresh page load, from
-// the daily snapshots: the latest one if anything has moved since, or —
-// when nothing has (e.g. the morning after, before tonight's games) — the
-// one before it, so visitors still see how last night's games shuffled
-// things. Null if there's not enough history.
-async function snapshotBaselineRanks(season, currentRanks) {
-  try {
-    const history = await fetch(HISTORY_URL_FOR_MOODS).then((r) => r.json());
-    const entries = (history[season] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-    const ranksOf = (entry) => competitionRanks(entry.standings.map((s) => ({ name: s.team, score: s.score })));
-    if (!entries.length) return null;
-    const latest = ranksOf(entries[entries.length - 1]);
-    const unchangedSinceLatest = [...currentRanks].every(([name, rank]) => latest.get(name) === rank);
-    if (!unchangedSinceLatest) return latest;
-    return entries.length >= 2 ? ranksOf(entries[entries.length - 2]) : null;
-  } catch {
-    return null; // moods are decoration — never let them break the page
-  }
-}
 
 // Team name -> { mood: "happy" | "sad", from, to } for every team whose
 // rank differs between `baseline` and `current` (teams missing from
@@ -349,10 +339,12 @@ function renderStandings(standings, season) {
   if (oldPositions) animateRowReorder(oldPositions);
 
   // Live rank changes since the last poll. A fresh load has no previous
-  // ranks — loadAndRender compares it against the daily snapshots instead.
+  // ranks — loadAndRender compares it against this browser's cached ranks
+  // instead. Saved every render so a reload doesn't replay the same moods.
   const currentRanks = new Map(standings.map((t) => [t.name, t.rank]));
   if (previousRanks) playMoods(rankMoods(previousRanks, currentRanks));
   previousRanks = currentRanks;
+  saveCachedRanks(season, currentRanks);
 
   statusEl.hidden = true;
   table.hidden = false;
@@ -395,19 +387,18 @@ async function loadAndRender(isInitialLoad) {
       fetchAllPlayersForSeason(previousSeasonId(currentSeason)).catch(() => []),
     ]);
     const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster);
+    // Read before rendering — renderStandings overwrites the cache.
+    const cachedRanks = isInitialLoad ? loadCachedRanks(currentSeason) : null;
     renderStandings(standings, currentSeason);
 
     if (isInitialLoad) {
       if (new URLSearchParams(location.search).has("preview-moods")) {
         setTimeout(() => playMoods(previewMoods(standings)), 400);
-      } else if (currentSeason === getPoolSeasons().at(-1)) {
-        // Only the season being played — a finished season's standings
-        // don't move, so there's nothing to react to.
+      } else {
+        // Only what moved since this browser's last visit (nothing on a
+        // first visit). Short delay so the table has visibly settled first.
         const currentRanks = new Map(standings.map((t) => [t.name, t.rank]));
-        snapshotBaselineRanks(currentSeason, currentRanks).then((baseline) => {
-          // Short delay so the table has visibly settled before anything moves.
-          setTimeout(() => playMoods(rankMoods(baseline, currentRanks)), 400);
-        });
+        setTimeout(() => playMoods(rankMoods(cachedRanks, currentRanks)), 400);
       }
     }
   } catch (err) {
