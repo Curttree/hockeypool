@@ -291,7 +291,35 @@ async function renderChart(season) {
 
   const chromeColors = chartChromeColors();
 
-  if (chart) chart.destroy();
+  if (chart) {
+    // Update the existing instance instead of destroy+recreate — a brand
+    // new Chart animates every point growing up from the axis baseline,
+    // which on every poll made the whole line flash down to 0 and back.
+    // Chart.js also keys each point's prior animated position off the
+    // dataset *object identity* at that index, so handing it a fresh
+    // object (even with identical values) still triggers that same
+    // from-baseline animation — mutating the existing objects in place
+    // (matched by label) keeps the identity so it animates from each
+    // point's actual previous position instead.
+    const existingByLabel = new Map(chart.data.datasets.map((d) => [d.label, d]));
+    chart.data.datasets = datasets.map((desired) => {
+      const existing = existingByLabel.get(desired.label);
+      if (!existing) return desired;
+      Object.assign(existing, desired);
+      return existing;
+    });
+    chart.options.plugins.tooltip.callbacks.title = (items) =>
+      items.length ? formatDayOffset(baseTime, items[0].parsed.x) : "";
+    chart.options.plugins.legend.labels.color = chromeColors.text;
+    chart.options.scales.x.ticks.color = chromeColors.muted;
+    chart.options.scales.x.ticks.callback = (value) => formatDayOffset(baseTime, value);
+    chart.options.scales.x.grid.color = chromeColors.border;
+    chart.options.scales.y.ticks.color = chromeColors.muted;
+    chart.options.scales.y.grid.color = chromeColors.border;
+    chart.update();
+    return;
+  }
+
   chart = new Chart(chartCanvas, {
     type: "line",
     data: { datasets },
