@@ -71,20 +71,25 @@ if (!standings.length) {
   throw new Error("Scraped zero teams from the standings table — page likely didn't render as expected.");
 }
 
-const today = new Date().toISOString().slice(0, 10);
+// This runs early morning (see the workflow's cron), capturing the result
+// of the previous day's games — so the snapshot is tagged with yesterday's
+// date, not the date the action happens to be running on.
+const runTime = new Date();
+runTime.setUTCDate(runTime.getUTCDate() - 1);
+const snapshotDate = runTime.toISOString().slice(0, 10);
 
 const history = loadJson(DATA_PATH);
 if (!history[season]) history[season] = [];
-upsertByDate(history[season], { date: today, standings });
+upsertByDate(history[season], { date: snapshotDate, standings });
 saveJson(DATA_PATH, history);
 
 const pointsHistory = loadJson(PLAYER_POINTS_PATH);
 if (!pointsHistory[season]) pointsHistory[season] = [];
-upsertByDate(pointsHistory[season], { date: today, points: playerPoints });
+upsertByDate(pointsHistory[season], { date: snapshotDate, points: playerPoints });
 pointsHistory[season] = pointsHistory[season].slice(-PLAYER_POINTS_KEEP);
 saveJson(PLAYER_POINTS_PATH, pointsHistory);
 
 console.log(
   `Snapshotted ${standings.length} teams and ${Object.keys(playerPoints).length} scoring skaters ` +
-  `for season ${season} on ${today}.`
+  `for season ${season} on ${snapshotDate}.`
 );

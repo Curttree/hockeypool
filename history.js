@@ -1,7 +1,9 @@
 // Renders the "Standings Over Time" line chart below the standings
 // table, from the daily snapshots captured by
 // .github/workflows/snapshot-standings.yml into data/standings-history.json.
-// That file is static — no polling needed, it only changes once a day.
+// That file itself is fetched once (it only changes once a day) — but the
+// chart still polls, to keep today's live placeholder point up to date
+// (see fetchLiveEntry).
 const HISTORY_URL = "data/standings-history.json";
 const chartCanvas = document.getElementById("standings-chart");
 const chartStatus = document.getElementById("chart-status");
@@ -79,6 +81,14 @@ function weightedLinearRegression(points) {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// The x-axis is a plain linear scale of "days since the first point"
+// (not Chart.js's category scale, which would space every point evenly
+// regardless of the actual gap between dates) — this turns a numeric
+// offset back into the calendar date it represents, for ticks/tooltips.
+function formatDayOffset(baseTime, offset) {
+  return new Date(baseTime + offset * DAY_MS).toISOString().slice(0, 10);
+}
+
 // Builds one dashed "projection" dataset per team: a linear trend fit
 // through that team's already-captured points (over whatever range is
 // currently selected) — weighted so recent snapshots count more than
@@ -93,13 +103,12 @@ function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
   if (!(seasonEndTime > lastTime)) return [];
 
   const endX = (seasonEndTime - baseTime) / DAY_MS;
-  const lastIndex = entries.length - 1;
   const lastX = (lastTime - baseTime) / DAY_MS;
 
   return teamNames
     .map((team, i) => {
-      const lastReal = realDatasets[i].data[lastIndex];
-      if (lastReal == null) return null; // team has no value at the last displayed point
+      const lastPoint = realDatasets[i].data[realDatasets[i].data.length - 1];
+      if (lastPoint.y == null) return null; // team has no value at the last displayed point
 
       const points = entries
         .map((e) => {
@@ -114,18 +123,19 @@ function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
       if (!fit) return null;
 
       const projected = Math.max(0, Math.round(fit.m * endX + fit.b));
-      const data = new Array(entries.length + 1).fill(null);
-      data[lastIndex] = lastReal; // anchor the dashed segment to the real line's end
-      data[lastIndex + 1] = projected;
 
       return {
         label: `${team} (Projected)`,
-        data,
+        // Just the two endpoints — anchored to the real line's last
+        // point, out to the projected value at the season's end date.
+        data: [
+          { x: lastPoint.x, y: lastPoint.y },
+          { x: endX, y: projected },
+        ],
         borderColor: TEAM_COLORS[i % TEAM_COLORS.length],
         backgroundColor: TEAM_COLORS[i % TEAM_COLORS.length],
         borderDash: [6, 4],
-        pointRadius: data.map((_, idx) => (idx === lastIndex + 1 ? 5 : 0)),
-        spanGaps: true,
+        pointRadius: [0, 5],
         tension: 0,
         isProjection: true,
         projectionFor: i,
@@ -144,6 +154,32 @@ function chartChromeColors() {
     text: styles.getPropertyValue("--text").trim(),
     muted: styles.getPropertyValue("--muted").trim(),
     border: styles.getPropertyValue("--border").trim(),
+  };
+}
+
+function todayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// The nightly Action always tags a snapshot with the *previous* day (it
+// runs early morning, reporting on last night's games — see
+// snapshot-standings.mjs), so there's never a persisted entry for today
+// until tomorrow. This fills that gap with a live-computed one — reusing
+// the exact same scoring logic the Standings table itself uses — so
+// today's in-progress totals show up right away instead of only once the
+// nightly Action gets around to them. It's provisional: recomputed on
+// every render (poll or otherwise) and simply never written to disk, so
+// once a real persisted entry for today exists (the Action having since
+// run), that one wins and this stops getting called for that date.
+async function fetchLiveEntry(season) {
+  const [roster, previousRoster] = await Promise.all([
+    fetchAllPlayersForSeason(season),
+    fetchAllPlayersForSeason(previousSeasonId(season)).catch(() => []),
+  ]);
+  const standings = computeStandings(season, getTeamsForSeason(season), roster, previousRoster);
+  return {
+    date: todayDateString(),
+    standings: standings.map((t) => ({ team: t.name, score: t.score })),
   };
 }
 
@@ -169,6 +205,19 @@ async function renderChart(season) {
   if (!isCurrentSeason) rangeSelect.value = "season";
 
   const allEntries = (historyData[season] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+
+  // No persisted entry for today yet (see fetchLiveEntry) — add a live
+  // one computed the same way the Standings table is, so today's
+  // in-progress totals show up without waiting for tonight's snapshot.
+  if (isCurrentSeason && !allEntries.some((e) => e.date === todayDateString())) {
+    const liveEntry = await fetchLiveEntry(season).catch(() => null);
+    if (myToken !== renderToken) return; // a newer render call already took over
+    if (liveEntry) {
+      allEntries.push(liveEntry);
+      allEntries.sort((a, b) => a.date.localeCompare(b.date));
+    }
+  }
+
   const entries = filterByRange(allEntries, rangeSelect.value);
 
   if (entries.length < 2) {
@@ -191,7 +240,11 @@ async function renderChart(season) {
     return;
   }
 
-  const labels = entries.map((e) => e.date);
+  // "Days since the first displayed point" — the numeric x-scale value
+  // powering real, proportional time spacing (see formatDayOffset).
+  const baseTime = new Date(entries[0].date).getTime();
+  const dayOffset = (dateStr) => (new Date(dateStr).getTime() - baseTime) / DAY_MS;
+
   const teamNames = [...new Set(entries.flatMap((e) => e.standings.map((s) => s.team)))];
 
   const datasets = await Promise.all(teamNames.map(async (team, i) => {
@@ -199,7 +252,7 @@ async function renderChart(season) {
       label: team,
       data: entries.map((e) => {
         const found = e.standings.find((s) => s.team === team);
-        return found ? found.score : null;
+        return { x: dayOffset(e.date), y: found ? found.score : null };
       }),
       borderColor: TEAM_COLORS[i % TEAM_COLORS.length],
       backgroundColor: TEAM_COLORS[i % TEAM_COLORS.length],
@@ -227,14 +280,6 @@ async function renderChart(season) {
     const projectionDatasets = buildProjectionDatasets(season, entries, teamNames, datasets);
     if (projectionDatasets.length) {
       addedProjection = true;
-      labels.push(getSeasonEnd(season));
-      // Pad the real datasets to match the new label so their lines
-      // don't stretch to it (spanGaps only bridges nulls in between).
-      datasets.forEach((ds) => {
-        ds.data.push(null);
-        if (Array.isArray(ds.pointStyle)) ds.pointStyle.push("circle");
-        if (Array.isArray(ds.pointRadius)) ds.pointRadius.push(0);
-      });
       datasets.push(...projectionDatasets);
     }
   }
@@ -249,7 +294,7 @@ async function renderChart(season) {
   if (chart) chart.destroy();
   chart = new Chart(chartCanvas, {
     type: "line",
-    data: { labels, datasets },
+    data: { datasets },
     options: {
       responsive: true,
       // Without this, Chart.js holds a fixed 2:1 aspect ratio — on a
@@ -257,6 +302,11 @@ async function renderChart(season) {
       // container's actual height, leaving dead space below the chart.
       maintainAspectRatio: false,
       plugins: {
+        tooltip: {
+          callbacks: {
+            title: (items) => (items.length ? formatDayOffset(baseTime, items[0].parsed.x) : ""),
+          },
+        },
         legend: {
           labels: {
             color: chromeColors.text,
@@ -290,7 +340,14 @@ async function renderChart(season) {
         },
       },
       scales: {
-        x: { ticks: { color: chromeColors.muted }, grid: { color: chromeColors.border } },
+        // A linear (not category) scale so the gap between two points
+        // reflects the actual number of days between them, rather than
+        // every point being spaced evenly regardless of date.
+        x: {
+          type: "linear",
+          ticks: { color: chromeColors.muted, callback: (value) => formatDayOffset(baseTime, value) },
+          grid: { color: chromeColors.border },
+        },
         // precision: 0 keeps auto-picked tick steps whole numbers — points
         // are always integers, so a fractional step (e.g. while every
         // score is still 0 before the season starts) just looks odd.
@@ -313,6 +370,16 @@ async function initHistory() {
   // Chart.js colors are baked into the chart at construction time, so a
   // theme flip needs an explicit re-render to pick up the new palette.
   window.addEventListener("themechange", () => renderChart(seasonSelect.value));
+
+  // Keeps today's live placeholder point (see fetchLiveEntry) moving as
+  // new results come in — POLL_INTERVAL_MS is standings.js's, already
+  // declared in this same shared (non-module) script scope.
+  setInterval(() => {
+    if (document.visibilityState === "visible") renderChart(seasonSelect.value);
+  }, POLL_INTERVAL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") renderChart(seasonSelect.value);
+  });
 }
 
 initHistory();

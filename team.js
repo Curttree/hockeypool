@@ -61,6 +61,11 @@ function shortName(fullName, lastName) {
 const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
 
+// Each player's credited points as of the last render — compared against
+// on the next one so a row whose score just went up can get a brief
+// flash (see renderTeam below).
+let previousPlayerScores = null;
+
 async function init() {
   const params = new URLSearchParams(location.search);
   const teamName = params.get("name") || "";
@@ -109,6 +114,7 @@ function startPolling(team) {
 }
 
 async function loadAndRender(team, isInitialLoad) {
+  if (isInitialLoad) previousPlayerScores = null; // a fresh load shouldn't flash anything
   try {
     const [roster, injuries, previousRoster, pointsHistory] = await Promise.all([
       fetchAllPlayersForSeason(currentSeason),
@@ -214,7 +220,12 @@ function renderTeam(rows, totalCost) {
     return "<td>—</td>";
   };
 
+  const newPlayerScores = new Map();
+
   rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, noDataExpected }) => {
+    if (credited) newPlayerScores.set(name, credited.points);
+    const prevScore = previousPlayerScores ? previousPlayerScores.get(name) : undefined;
+    const scoreIncreased = credited && prevScore !== undefined && credited.points > prevScore;
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
     const acquiredBadge = tradedIn
@@ -229,6 +240,7 @@ function renderTeam(rows, totalCost) {
     const lastNightCell = `<td class="num last-night${lastNight > 0 ? " scored" : ""}">${lastNight == null ? "—" : lastNight}</td>`;
 
     const tr = document.createElement("tr");
+    if (scoreIncreased) tr.classList.add("score-flash");
     if (credited) {
       totalScore += credited.points;
       totalGoals += credited.goals;
@@ -261,6 +273,7 @@ function renderTeam(rows, totalCost) {
     }
     tbody.appendChild(tr);
   });
+  previousPlayerScores = newPlayerScores;
 
   tfoot.innerHTML = `
     <tr class="totals-row">

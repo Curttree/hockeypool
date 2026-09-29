@@ -223,6 +223,19 @@ main {
   50% { opacity: 0.4; }
 }
 
+/* Brief highlight on a row whose score just went up on a background poll
+   (see standings.js/team.js) — a translucent green flash that fades back
+   to whatever the row's normal background already was, so it reads as
+   "this just changed" without being distracting. */
+@keyframes score-flash {
+  0% { background-color: rgba(94, 230, 160, 0.35); }
+  100% { background-color: transparent; }
+}
+
+.score-flash {
+  animation: score-flash 1.8s ease-out;
+}
+
 .pager {
   display: flex;
   align-items: center;

@@ -18,7 +18,7 @@ function computeStandings(season, teams, roster, previousRoster) {
   const rosterIndex = buildRosterIndex(roster);
   const previousRosterIndex = buildRosterIndex(previousRoster);
 
-  return teams
+  const results = teams
     .map((team) => {
       let score = 0;
       const missing = [];
@@ -57,6 +57,15 @@ function computeStandings(season, teams, roster, previousRoster) {
       return { name: team.name, score, missing, ambiguous, cost, activeCount };
     })
     .sort((a, b) => b.score - a.score);
+
+  // Standard competition ranking ("1, 1, 3, 4…") — teams tied on score
+  // share the same rank, and the next distinct score picks up at the
+  // count of teams ahead of it rather than simply the next integer.
+  results.forEach((team, i) => {
+    team.rank = i > 0 && team.score === results[i - 1].score ? results[i - 1].rank : i + 1;
+  });
+
+  return results;
 }
 
 // Gold/silver/bronze medal badge for the top 3 ranks — a flat colored
@@ -87,13 +96,64 @@ function rankCell(rank) {
   return `<span class="rank-value">${rankBadge(rank) || rank}</span>`;
 }
 
+// Each team's score as of the last render — compared against on the next
+// one so a row that just went up can get a brief flash (see renderStandings
+// below). Reset to null whenever the season changes, so switching seasons
+// never flashes rows that just happen to share a name.
+let previousScores = null;
+
+// Records each visible row's current position (keyed by team name, so it
+// survives the full tbody rebuild every render does). Called before that
+// rebuild; the positions are then used afterward to animate any row that
+// ended up somewhere new — the "FLIP" technique (First/Last/Invert/Play).
+function captureRowPositions() {
+  const positions = new Map();
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    const name = tr.querySelector(".team-name a")?.textContent;
+    if (name) positions.set(name, tr.getBoundingClientRect().top);
+  });
+  return positions;
+}
+
+// Slides each row from where it used to be to its freshly-rendered
+// position, rather than letting a reorder just jump straight there.
+function animateRowReorder(oldPositions) {
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    const name = tr.querySelector(".team-name a")?.textContent;
+    if (!name || !oldPositions.has(name)) return;
+    const delta = oldPositions.get(name) - tr.getBoundingClientRect().top;
+    if (Math.abs(delta) < 1) return;
+
+    tr.style.transition = "none";
+    tr.style.transform = `translateY(${delta}px)`;
+    // Two rAFs, not one — lets the browser actually paint the starting
+    // (offset) position first, so the transition below has something to
+    // animate from instead of jumping straight to the end state.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        tr.style.transition = "transform 400ms ease";
+        tr.style.transform = "";
+      });
+    });
+    tr.addEventListener("transitionend", () => { tr.style.transition = ""; }, { once: true });
+  });
+}
+
 function renderStandings(standings, season) {
   const topScore = standings.length ? standings[0].score : 0;
+  // Only animate on a background poll update, not a fresh page/season
+  // load — previousScores is null exactly when this is the latter (see
+  // loadAndRender), same signal the score-flash effect keys off of.
+  const oldPositions = previousScores ? captureRowPositions() : null;
 
   tbody.innerHTML = "";
   standings.forEach((team, i) => {
-    const behindNext = i === 0 ? "" : (standings[i - 1].score - team.score).toLocaleString();
-    const behind1st = i === 0 ? "" : (topScore - team.score).toLocaleString();
+    const prevScore = previousScores ? previousScores.get(team.name) : undefined;
+    const scoreIncreased = prevScore !== undefined && team.score > prevScore;
+    // Blank for every team tied at rank 1 too, not just the literal first
+    // row — nobody's "ahead" of them, ties included.
+    const behindNext = team.rank === 1 ? "" : (standings[i - 1].score - team.score).toLocaleString();
+    const behind1st = team.rank === 1 ? "" : (topScore - team.score).toLocaleString();
     const warningParts = [];
     if (team.missing.length) warningParts.push(`no data found for: ${team.missing.join(", ")}`);
     if (team.ambiguous.length) {
@@ -113,8 +173,9 @@ function renderStandings(standings, season) {
     const logo = logoSrc ? `<img class="team-logo" src="${logoSrc}" alt="" width="28" height="28">` : "";
 
     const tr = document.createElement("tr");
+    if (scoreIncreased) tr.classList.add("score-flash");
     tr.innerHTML = `
-      <td class="num">${rankCell(i + 1)}</td>
+      <td class="num">${rankCell(team.rank)}</td>
       <td class="team-logo-col">${logo}</td>
       <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
       <td class="num score">${team.score.toLocaleString()}</td>
@@ -123,6 +184,8 @@ function renderStandings(standings, season) {
     `;
     tbody.appendChild(tr);
   });
+  previousScores = new Map(standings.map((t) => [t.name, t.score]));
+  if (oldPositions) animateRowReorder(oldPositions);
 
   statusEl.hidden = true;
   table.hidden = false;
@@ -152,6 +215,7 @@ async function loadAndRender(isInitialLoad) {
     statusEl.hidden = false;
     statusEl.textContent = "Loading standings…";
     statusEl.classList.add("loading-pulse");
+    previousScores = null; // a fresh load or season switch shouldn't flash anything
   }
 
   try {
