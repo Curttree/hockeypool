@@ -23,6 +23,11 @@ function computeStandings(season, teams, roster, previousRoster) {
       let score = 0;
       const missing = [];
       const ambiguous = [];
+      // Each credited player's own goals/assists/points, kept alongside
+      // the team's summed score — lets renderStandings later diff against
+      // the previous poll to describe *what* caused a score increase
+      // (see describeScoreChange), not just that it happened.
+      const playerBreakdown = [];
       team.players.forEach((entry) => {
         const name = playerName(entry);
         const tradeInfo = getTradeInfo(season, team.name, name);
@@ -30,7 +35,9 @@ function computeStandings(season, teams, roster, previousRoster) {
         // A frozen exit snapshot doesn't need a live lookup at all, so
         // an ambiguous name elsewhere in the league can't affect it.
         if (tradeInfo.tradedOut) {
-          score += creditedStats(tradeInfo, null).points;
+          const stats = creditedStats(tradeInfo, null);
+          score += stats.points;
+          playerBreakdown.push({ name, ...stats });
           return;
         }
 
@@ -46,6 +53,7 @@ function computeStandings(season, teams, roster, previousRoster) {
         const credited = creditedStats(tradeInfo, player);
         if (credited) {
           score += credited.points;
+          playerBreakdown.push({ name, ...credited });
         } else if (!existsInRoster(previousRosterIndex, entry)) {
           // No stats yet is fine for anyone who was around last season;
           // only flag names we can't find in either.
@@ -54,7 +62,7 @@ function computeStandings(season, teams, roster, previousRoster) {
       });
       const cost = computeTeamCost(season, team, previousRosterIndex);
       const activeCount = countActivePlayers(season, team);
-      return { name: team.name, score, missing, ambiguous, cost, activeCount };
+      return { name: team.name, score, missing, ambiguous, cost, activeCount, playerBreakdown };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -96,11 +104,42 @@ function rankCell(rank) {
   return `<span class="rank-value">${rankBadge(rank) || rank}</span>`;
 }
 
+// How long the score-flash highlight (and its event caption row, if any)
+// stays on screen — kept in sync with the animation duration in style.css
+// so the caption row is removed right as the highlight finishes fading.
+const SCORE_FLASH_MS = 4000;
+
 // Each team's score as of the last render — compared against on the next
 // one so a row that just went up can get a brief flash (see renderStandings
 // below). Reset to null whenever the season changes, so switching seasons
 // never flashes rows that just happen to share a name.
 let previousScores = null;
+
+// Each team's per-player goals/assists as of the last render, keyed by
+// "<team>::<player>" — compared on the next render (see
+// describeScoreChange) to caption a flashing row with what actually
+// happened, e.g. "Goal - Auston Matthews". Reset alongside previousScores.
+let previousPlayerStats = null;
+
+// Describes what changed for a team whose score just went up, by finding
+// which of its players' goals/assists increased since the last render —
+// e.g. "Goal - Auston Matthews" or "Goal - Matthews, Assist - Hyman" if
+// more than one contributed between polls. Null if there's nothing to
+// compare against yet, or (shouldn't normally happen) no player accounts
+// for the change.
+function describeScoreChange(team) {
+  if (!previousPlayerStats) return null;
+  const parts = [];
+  (team.playerBreakdown || []).forEach((p) => {
+    const prev = previousPlayerStats.get(`${team.name}::${p.name}`);
+    if (!prev) return;
+    const deltaGoals = p.goals - prev.goals;
+    const deltaAssists = p.assists - prev.assists;
+    if (deltaGoals > 0) parts.push(`Goal${deltaGoals > 1 ? ` x${deltaGoals}` : ""} - ${p.name}`);
+    if (deltaAssists > 0) parts.push(`Assist${deltaAssists > 1 ? ` x${deltaAssists}` : ""} - ${p.name}`);
+  });
+  return parts.length ? parts.join(", ") : null;
+}
 
 // Records each visible row's current position (keyed by team name, so it
 // survives the full tbody rebuild every render does). Called before that
@@ -150,6 +189,7 @@ function renderStandings(standings, season) {
   standings.forEach((team, i) => {
     const prevScore = previousScores ? previousScores.get(team.name) : undefined;
     const scoreIncreased = prevScore !== undefined && team.score > prevScore;
+    const changeDescription = scoreIncreased ? describeScoreChange(team) : null;
     // Blank for every team tied at rank 1 too, not just the literal first
     // row — nobody's "ahead" of them, ties included.
     const behindNext = team.rank === 1 ? "" : (standings[i - 1].score - team.score).toLocaleString();
@@ -183,8 +223,27 @@ function renderStandings(standings, season) {
       <td class="num">${behind1st}</td>
     `;
     tbody.appendChild(tr);
+
+    // A separate full-width row rather than cramming this into the narrow
+    // team-name cell — there's room for more than one contributor's name
+    // here. Shares the same score-flash animation/timing as the row above
+    // so the two read as one highlight, and is removed once that
+    // animation ends rather than sticking around until the next poll.
+    if (changeDescription) {
+      const eventRow = document.createElement("tr");
+      eventRow.className = "score-flash score-event-row";
+      eventRow.innerHTML = `<td colspan="6"><div class="score-event">${changeDescription}</div></td>`;
+      tbody.appendChild(eventRow);
+      setTimeout(() => eventRow.remove(), SCORE_FLASH_MS);
+    }
   });
   previousScores = new Map(standings.map((t) => [t.name, t.score]));
+  previousPlayerStats = new Map();
+  standings.forEach((team) => {
+    (team.playerBreakdown || []).forEach((p) => {
+      previousPlayerStats.set(`${team.name}::${p.name}`, { goals: p.goals, assists: p.assists });
+    });
+  });
   if (oldPositions) animateRowReorder(oldPositions);
 
   statusEl.hidden = true;
@@ -216,6 +275,7 @@ async function loadAndRender(isInitialLoad) {
     statusEl.textContent = "Loading standings…";
     statusEl.classList.add("loading-pulse");
     previousScores = null; // a fresh load or season switch shouldn't flash anything
+    previousPlayerStats = null;
   }
 
   try {

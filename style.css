@@ -226,14 +226,23 @@ main {
 /* Brief highlight on a row whose score just went up on a background poll
    (see standings.js/team.js) — a translucent green flash that fades back
    to whatever the row's normal background already was, so it reads as
-   "this just changed" without being distracting. */
+   "this just changed" without being distracting. Holds at full green for
+   the first 60% of the animation (rather than fading immediately) so
+   there's time to read the event caption row standings.js adds alongside
+   it — see SCORE_FLASH_MS, kept in sync with this duration. */
 @keyframes score-flash {
   0% { background-color: rgba(94, 230, 160, 0.35); }
+  60% { background-color: rgba(94, 230, 160, 0.35); }
   100% { background-color: transparent; }
 }
 
 .score-flash {
-  animation: score-flash 1.8s ease-out;
+  animation: score-flash 4s ease-out;
+}
+
+.score-event-row td {
+  padding-top: 0;
+  padding-bottom: 8px;
 }
 
 .pager {
@@ -395,6 +404,12 @@ tbody tr:hover { background: var(--row-hover); }
 .team-name a:hover { color: var(--accent); text-decoration: underline; }
 .score { color: var(--accent); font-weight: 700; }
 .warn { cursor: help; }
+
+.score-event {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+}
 
 .injury-icon {
   display: inline-flex;
