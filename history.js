@@ -28,6 +28,56 @@ let historyData = null;
 let chart = null;
 let renderToken = 0;
 
+// ---- Table <-> chart hover linking --------------------------------------
+// Hovering a standings row (standings.js) or a line here highlights that
+// team in both places: its line thickens and comes to the front while the
+// others fade, and its table row gets a bar in the line's color.
+let highlightedTeam = null;
+
+// Appends an alpha channel to a "#rrggbb" color.
+function withAlpha(hex, alpha) {
+  return hex + Math.round(alpha * 255).toString(16).padStart(2, "0");
+}
+
+// Re-styles the chart's datasets for the current highlightedTeam. Also
+// called after every chart render, since those reset each dataset's
+// colors back to its base values.
+function applyLineHighlight() {
+  if (!chart) return;
+  chart.data.datasets.forEach((ds) => {
+    const base = ds.baseColor;
+    if (!base) return;
+    const isTarget = ds.teamName === highlightedTeam;
+    const faded = highlightedTeam && !isTarget;
+    ds.borderColor = faded ? withAlpha(base, 0.18) : base;
+    ds.backgroundColor = faded ? withAlpha(base, 0.18) : base;
+    ds.borderWidth = isTarget ? 4 : faded ? 1.5 : 3;
+    // Lower order draws on top in Chart.js.
+    ds.order = isTarget ? -1 : 0;
+  });
+  chart.update("none");
+}
+
+function linkTeamHighlight(team) {
+  if (team === highlightedTeam) return;
+  highlightedTeam = team;
+  applyLineHighlight();
+  const ds = chart && chart.data.datasets.find((d) => d.teamName === team && !d.isProjection);
+  if (typeof setLinkedRow === "function") setLinkedRow(team, ds ? ds.baseColor : null);
+}
+
+// Chart side of the link: the line nearest the pointer (within a small
+// radius, so empty space clears it) is the one highlighted.
+function onChartHover(evt, _elements, target) {
+  const nearest = target.getElementsAtEventForMode(evt, "nearest", { intersect: false }, false)[0];
+  let team = null;
+  if (nearest && Math.hypot(nearest.element.x - evt.x, nearest.element.y - evt.y) < 24) {
+    team = target.data.datasets[nearest.datasetIndex].teamName;
+  }
+  linkTeamHighlight(team);
+}
+chartCanvas.addEventListener("mouseleave", () => linkTeamHighlight(null));
+
 const LAST_POINT_RADIUS = 14;
 // Chart.js draws Image pointStyles at the image's own width/height and
 // ignores pointRadius entirely, so an SVG with no intrinsic size (ours
@@ -139,6 +189,8 @@ function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
         tension: 0,
         isProjection: true,
         projectionFor: i,
+        teamName: team,
+        baseColor: TEAM_COLORS[i % TEAM_COLORS.length],
       };
     })
     .filter(Boolean);
@@ -172,6 +224,10 @@ function todayDateString() {
 // once a real persisted entry for today exists (the Action having since
 // run), that one wins and this stops getting called for that date.
 async function fetchLiveEntry(season) {
+  // ?preview-fx (standings.js): show the preview's made-up totals instead.
+  if (typeof previewStandingsOverride !== "undefined" && previewStandingsOverride) {
+    return { date: todayDateString(), standings: previewStandingsOverride };
+  }
   const [roster, previousRoster] = await Promise.all([
     fetchAllPlayersForSeason(season),
     fetchAllPlayersForSeason(previousSeasonId(season)).catch(() => []),
@@ -258,6 +314,8 @@ async function renderChart(season) {
       backgroundColor: TEAM_COLORS[i % TEAM_COLORS.length],
       spanGaps: true,
       tension: 0.2,
+      teamName: team,
+      baseColor: TEAM_COLORS[i % TEAM_COLORS.length],
     };
 
     const logoSrc = getTeamLogo(season, team);
@@ -317,6 +375,7 @@ async function renderChart(season) {
     chart.options.scales.y.ticks.color = chromeColors.muted;
     chart.options.scales.y.grid.color = chromeColors.border;
     chart.update();
+    if (highlightedTeam) applyLineHighlight();
     return;
   }
 
@@ -329,6 +388,7 @@ async function renderChart(season) {
       // narrow (mobile) width that caps the canvas well short of the
       // container's actual height, leaving dead space below the chart.
       maintainAspectRatio: false,
+      onHover: onChartHover,
       plugins: {
         tooltip: {
           callbacks: {
@@ -342,6 +402,10 @@ async function renderChart(season) {
             // dataset (see onClick below) — they don't need their own
             // legend entry too.
             filter: (legendItem, data) => !data.datasets[legendItem.datasetIndex].isProjection,
+            // Legend follows dataset draw `order` by default, which the
+            // hover highlight changes (to bring a line to the front) —
+            // this keeps the legend itself from reshuffling on hover.
+            sort: (a, b) => a.datasetIndex - b.datasetIndex,
           },
           // Default Chart.js behavior just toggles one line at a time.
           // This instead isolates: click a team to hide every other

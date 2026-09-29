@@ -100,8 +100,8 @@ function rankBadge(rank) {
 // every row's rank cell is the same height and everything lines up —
 // without it, rows 1-3 (26px icon) are taller than the rest (just text)
 // and the whole column looks unevenly spaced.
-function rankCell(rank) {
-  return `<span class="rank-value">${rankBadge(rank) || rank}</span>`;
+function rankCell(rank, shine) {
+  return `<span class="rank-value${shine ? " medal-shine" : ""}">${rankBadge(rank) || rank}</span>`;
 }
 
 // How long the score-flash highlight (and its event caption row, if any)
@@ -123,13 +123,15 @@ let previousPlayerStats = null;
 
 // Describes what changed for a team whose score just went up, by finding
 // which of its players' goals/assists increased since the last render —
-// e.g. "Goal - Auston Matthews" or "Goal - Matthews, Assist - Hyman" if
-// more than one contributed between polls. Null if there's nothing to
-// compare against yet, or (shouldn't normally happen) no player accounts
-// for the change.
+// { text, goals, assists }, where text is e.g. "Goal - Auston Matthews" or
+// "Goal - Matthews, Assist - Hyman" if more than one contributed between
+// polls, and goals/assists are the totals (they pick the row's goal-lamp
+// vs assist highlight). Null if there's nothing to compare against yet,
+// or (shouldn't normally happen) no player accounts for the change.
 function describeScoreChange(team) {
   if (!previousPlayerStats) return null;
   const parts = [];
+  let goals = 0, assists = 0;
   (team.playerBreakdown || []).forEach((p) => {
     const prev = previousPlayerStats.get(`${team.name}::${p.name}`);
     if (!prev) return;
@@ -137,9 +139,72 @@ function describeScoreChange(team) {
     const deltaAssists = p.assists - prev.assists;
     if (deltaGoals > 0) parts.push(`Goal${deltaGoals > 1 ? ` x${deltaGoals}` : ""} - ${p.name}`);
     if (deltaAssists > 0) parts.push(`Assist${deltaAssists > 1 ? ` x${deltaAssists}` : ""} - ${p.name}`);
+    goals += Math.max(0, deltaGoals);
+    assists += Math.max(0, deltaAssists);
   });
-  return parts.length ? parts.join(", ") : null;
+  return parts.length ? { text: parts.join(", "), goals, assists } : null;
 }
+
+// ---- Score effects ------------------------------------------------------
+
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Counts a score cell up from `from` to `to` (ease-out, longer for bigger
+// jumps but capped), then gives the number a little pop. Instant when the
+// user prefers reduced motion.
+function animateScoreCount(el, from, to) {
+  if (prefersReducedMotion() || from === to) {
+    el.textContent = to.toLocaleString();
+    return;
+  }
+  const duration = Math.min(1500, 400 + 120 * Math.abs(to - from));
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(from + (to - from) * eased).toLocaleString();
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.classList.remove("score-pop");
+      void el.offsetWidth; // restarts the pop if it was already applied
+      el.classList.add("score-pop");
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+// Row highlight driven by hovering the chart (see history.js
+// linkTeamHighlight) — kept here so it survives the tbody rebuild every
+// render does. `color` is that team's line color on the chart.
+let linkedRow = null; // { name, color } or null
+
+function setLinkedRow(name, color) {
+  linkedRow = name ? { name, color } : null;
+  applyLinkedRow();
+}
+
+function applyLinkedRow() {
+  tbody.querySelectorAll("tr.row-linked").forEach((tr) => tr.classList.remove("row-linked"));
+  if (!linkedRow) return;
+  const tr = [...tbody.querySelectorAll("tr[data-team]")].find((row) => row.dataset.team === linkedRow.name);
+  if (!tr) return;
+  tr.classList.add("row-linked");
+  tr.style.setProperty("--link-color", linkedRow.color || "var(--accent)");
+}
+
+// Hovering a standings row highlights that team's line on the chart (and
+// vice versa — see history.js). history.js loads after this file, so it's
+// looked up at event time rather than referenced directly.
+tbody.addEventListener("mouseover", (e) => {
+  const tr = e.target.closest("tr[data-team]");
+  if (tr && typeof linkTeamHighlight === "function") linkTeamHighlight(tr.dataset.team);
+});
+tbody.addEventListener("mouseleave", () => {
+  if (typeof linkTeamHighlight === "function") linkTeamHighlight(null);
+});
 
 // Records each visible row's current position (keyed by team name, so it
 // survives the full tbody rebuild every render does). Called before that
@@ -203,6 +268,7 @@ function loadCachedRanks(season) {
 }
 
 function saveCachedRanks(season, ranks) {
+  if (typeof previewMode !== "undefined" && previewMode) return; // never save ?preview-fx's made-up ranks
   try {
     localStorage.setItem(RANKS_CACHE_KEY_PREFIX + season, JSON.stringify(Object.fromEntries(ranks)));
   } catch {
@@ -266,6 +332,73 @@ function previewMoods(standings) {
   return moods;
 }
 
+// ?preview-fx in the URL demos the live-game effects without waiting
+// for real games: shortly after the real standings render, a made-up
+// update arrives — the second-placed team's first two players get a goal
+// and an assist, the third's first player an assist — and goes through
+// the exact same scoring/ranking/render path a real poll would (count-up,
+// goal lamp, captions, rows sliding into their new order, medals, crown,
+// rank moods). The chart's live point and the recap banner use the same
+// made-up numbers. While previewing, the page stops polling (so the demo
+// isn't overwritten by real data) and never saves the fake ranks.
+const previewMode = new URLSearchParams(location.search).has("preview-fx");
+
+// The made-up standings, for history.js's live chart point (see
+// fetchLiveEntry) to use instead of real data while previewing.
+let previewStandingsOverride = null;
+
+function buildPreviewStandings(realStandings, season) {
+  const teams = getTeamsForSeason(season);
+  const playersOf = (name) => (teams.find((t) => t.name === name)?.players || []).map(playerName);
+  // [player, goals, assists] credited to each team in this made-up update.
+  const events = new Map();
+  if (realStandings[1]) {
+    const [a, b] = playersOf(realStandings[1].name);
+    events.set(realStandings[1].name, [[a, 1, 0], [b, 0, 1]].filter(([n]) => n));
+  }
+  if (realStandings[2]) {
+    const [a] = playersOf(realStandings[2].name);
+    events.set(realStandings[2].name, [[a, 0, 1]].filter(([n]) => n));
+  }
+
+  const fake = realStandings.map((team) => {
+    const breakdown = (team.playerBreakdown || []).map((p) => ({ ...p }));
+    let score = team.score;
+    (events.get(team.name) || []).forEach(([name, goals, assists]) => {
+      // describeScoreChange diffs against the previous render's stats —
+      // make sure these players have a baseline there to diff against.
+      const key = `${team.name}::${name}`;
+      if (previousPlayerStats && !previousPlayerStats.has(key)) previousPlayerStats.set(key, { goals: 0, assists: 0 });
+      const prev = previousPlayerStats ? previousPlayerStats.get(key) : { goals: 0, assists: 0 };
+      let entry = breakdown.find((p) => p.name === name);
+      if (!entry) {
+        entry = { name, goals: prev.goals, assists: prev.assists, points: prev.goals + prev.assists };
+        breakdown.push(entry);
+      }
+      entry.goals += goals;
+      entry.assists += assists;
+      entry.points += goals + assists;
+      score += goals + assists;
+    });
+    return { ...team, score, playerBreakdown: breakdown };
+  });
+
+  // Same sort + competition ranking as computeStandings.
+  fake.sort((a, b) => b.score - a.score);
+  fake.forEach((team, i) => {
+    team.rank = i > 0 && team.score === fake[i - 1].score ? fake[i - 1].rank : i + 1;
+  });
+  return fake;
+}
+
+function runPreview(realStandings, season) {
+  const fake = buildPreviewStandings(realStandings, season);
+  previewStandingsOverride = fake.map((t) => ({ team: t.name, score: t.score }));
+  renderStandings(fake, season);
+  if (typeof renderChart === "function") renderChart(season);
+  if (typeof showPreviewRecap === "function") showPreviewRecap(season, realStandings, fake);
+}
+
 function renderStandings(standings, season) {
   const topScore = standings.length ? standings[0].score : 0;
   // Only animate on a background poll update, not a fresh page/season
@@ -273,11 +406,17 @@ function renderStandings(standings, season) {
   // loadAndRender), same signal the score-flash effect keys off of.
   const oldPositions = previousScores ? captureRowPositions() : null;
 
+  // Crown + medal shine for every team in first — including ties — once
+  // the leaders have actually scored (not for everyone sitting at 0
+  // before the season starts).
+  const leadersHaveScored = standings.length > 0 && standings[0].score > 0;
+
   tbody.innerHTML = "";
   standings.forEach((team, i) => {
     const prevScore = previousScores ? previousScores.get(team.name) : undefined;
     const scoreIncreased = prevScore !== undefined && team.score > prevScore;
-    const changeDescription = scoreIncreased ? describeScoreChange(team) : null;
+    const change = scoreIncreased ? describeScoreChange(team) : null;
+    const isLeader = leadersHaveScored && team.rank === 1;
     // Blank for every team tied at rank 1 too, not just the literal first
     // row — nobody's "ahead" of them, ties included.
     const behindNext = team.rank === 1 ? "" : (standings[i - 1].score - team.score).toLocaleString();
@@ -300,31 +439,39 @@ function renderStandings(standings, season) {
     const logoSrc = getTeamLogo(season, team.name);
     // Wrapped so a rank-change mood (see playMoods) can position its
     // sparkle/tear effect relative to the logo.
+    const crown = isLeader ? `<span class="leader-crown" title="Leader" aria-label="Leader">👑</span>` : "";
     const logo = logoSrc
-      ? `<span class="team-logo-wrap"><img class="team-logo" src="${logoSrc}" alt="" width="28" height="28"></span>`
+      ? `<span class="team-logo-wrap">${crown}<img class="team-logo" src="${logoSrc}" alt="" width="28" height="28"></span>`
       : "";
+    // Goal lamp (red) if any goal was scored since the last poll, a softer
+    // blue if it was only assists — both replace the plain green flash.
+    const lightClass = change && change.goals ? "goal-light" : change && change.assists ? "assist-light" : "";
 
     const tr = document.createElement("tr");
+    tr.dataset.team = team.name;
     if (scoreIncreased) tr.classList.add("score-flash");
+    if (lightClass) tr.classList.add(lightClass);
     tr.innerHTML = `
-      <td class="num">${rankCell(team.rank)}</td>
+      <td class="num">${rankCell(team.rank, isLeader)}</td>
       <td class="team-logo-col">${logo}</td>
       <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
-      <td class="num score">${team.score.toLocaleString()}</td>
+      <td class="num score"><span class="score-num">${(scoreIncreased ? prevScore : team.score).toLocaleString()}</span></td>
       <td class="num">${behindNext}</td>
       <td class="num">${behind1st}</td>
     `;
     tbody.appendChild(tr);
+    // Count up from the previous score rather than jumping straight there.
+    if (scoreIncreased) animateScoreCount(tr.querySelector(".score-num"), prevScore, team.score);
 
     // A separate full-width row rather than cramming this into the narrow
     // team-name cell — there's room for more than one contributor's name
     // here. Shares the same score-flash animation/timing as the row above
     // so the two read as one highlight, and is removed once that
     // animation ends rather than sticking around until the next poll.
-    if (changeDescription) {
+    if (change) {
       const eventRow = document.createElement("tr");
-      eventRow.className = "score-flash score-event-row";
-      eventRow.innerHTML = `<td colspan="6"><div class="score-event">${changeDescription}</div></td>`;
+      eventRow.className = `score-flash score-event-row ${lightClass}`;
+      eventRow.innerHTML = `<td colspan="6"><div class="score-event">${change.text}</div></td>`;
       tbody.appendChild(eventRow);
       setTimeout(() => eventRow.remove(), SCORE_FLASH_MS);
     }
@@ -337,6 +484,7 @@ function renderStandings(standings, season) {
     });
   });
   if (oldPositions) animateRowReorder(oldPositions);
+  applyLinkedRow();
 
   // Live rank changes since the last poll. A fresh load has no previous
   // ranks — loadAndRender compares it against this browser's cached ranks
@@ -370,6 +518,9 @@ const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
 
 async function loadAndRender(isInitialLoad) {
+  // ?preview-fx: after the first render, the table shows made-up data —
+  // don't let a background poll overwrite it with real data.
+  if (previewMode && !isInitialLoad) return;
   if (isInitialLoad) {
     statusEl.hidden = false;
     statusEl.textContent = "Loading standings…";
@@ -392,7 +543,9 @@ async function loadAndRender(isInitialLoad) {
     renderStandings(standings, currentSeason);
 
     if (isInitialLoad) {
-      if (new URLSearchParams(location.search).has("preview-moods")) {
+      if (previewMode) {
+        setTimeout(() => runPreview(standings, currentSeason), 900);
+      } else if (new URLSearchParams(location.search).has("preview-moods")) {
         setTimeout(() => playMoods(previewMoods(standings)), 400);
       } else {
         // Only what moved since this browser's last visit (nothing on a

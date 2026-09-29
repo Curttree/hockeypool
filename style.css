@@ -686,3 +686,157 @@ tbody tr:hover { background: var(--row-hover); }
   inset: -10px;
 }
 #last-night-header { cursor: help; }
+
+/* ---- Standings effects (standings.js / history.js / recap.js) ---- */
+
+/* Score count-up finishes with a quick pop. */
+.score-num { display: inline-block; }
+.score-pop { animation: score-pop 0.45s ease-out; }
+@keyframes score-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* Goal lamp: the row pulses red a few times, like the light behind the
+   net, with a red bar down its left edge. Assist-only changes get a
+   softer blue. Both replace the plain green score flash (same 4s, so the
+   caption row timing in standings.js still lines up). */
+.score-flash.goal-light { animation: goal-light 4s ease-out; }
+.score-flash.goal-light > td:first-child { animation: goal-bar 4s ease-out; }
+.score-flash.assist-light { animation: assist-light 4s ease-out; }
+.score-flash.assist-light > td:first-child { animation: assist-bar 4s ease-out; }
+
+@keyframes goal-light {
+  0%, 16%, 32% { background-color: rgba(255, 59, 59, 0.42); }
+  8%, 24% { background-color: rgba(255, 59, 59, 0.12); }
+  60% { background-color: rgba(255, 59, 59, 0.22); }
+  100% { background-color: transparent; }
+}
+@keyframes goal-bar {
+  0%, 60% { box-shadow: inset 4px 0 0 #ff3b3b; }
+  100% { box-shadow: inset 4px 0 0 transparent; }
+}
+@keyframes assist-light {
+  0%, 60% { background-color: rgba(78, 161, 255, 0.28); }
+  100% { background-color: transparent; }
+}
+@keyframes assist-bar {
+  0%, 60% { box-shadow: inset 4px 0 0 #4ea1ff; }
+  100% { box-shadow: inset 4px 0 0 transparent; }
+}
+
+/* Leader's crown, perched on the logo with a gentle bob. */
+.leader-crown {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  z-index: 1;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(-50%) rotate(-12deg);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+  animation: crown-bob 3s ease-in-out infinite;
+}
+@keyframes crown-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-12deg); }
+  50% { transform: translateX(-50%) translateY(-2px) rotate(-6deg); }
+}
+
+/* An occasional shine sweeping across the leader's gold medal. */
+.rank-value.medal-shine {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.rank-value.medal-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.8) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: medal-shine 5s ease-in-out 1s infinite;
+  pointer-events: none;
+}
+@keyframes medal-shine {
+  0%, 70% { transform: translateX(-130%); }
+  90%, 100% { transform: translateX(130%); }
+}
+
+/* Row linked to a hovered chart line (or vice versa): its line's color
+   down the left edge. */
+tbody tr.row-linked { background: var(--row-hover); }
+tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-color, var(--accent)); }
+
+/* "Last night" recap banner. */
+.recap {
+  margin-bottom: 16px;
+  padding: 12px 14px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  animation: recap-in 0.4s ease-out;
+}
+.recap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.recap-title { font-weight: 700; }
+.recap-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.recap-close:hover { color: var(--text); background: var(--row-hover); }
+.recap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.recap-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  background: var(--row-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  animation: recap-chip-in 0.35s ease-out both;
+  animation-delay: calc(var(--i, 0) * 60ms + 150ms);
+}
+.recap-item.top { border-color: #f5c518; box-shadow: 0 0 0 1px rgba(245, 197, 24, 0.35); }
+.recap-item.quiet { opacity: 0.6; }
+.recap-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: contain; }
+.recap-team { font-weight: 600; }
+.recap-gain { color: var(--accent); font-weight: 700; }
+.recap-move { font-size: 0.75rem; font-weight: 700; }
+.recap-move.up { color: #2fb56a; }
+.recap-move.down { color: var(--danger); }
+@keyframes recap-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes recap-chip-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-pop, .leader-crown, .rank-value.medal-shine::after,
+  .recap, .recap-item { animation: none; }
+  .score-flash.goal-light, .score-flash.assist-light,
+  .score-flash.goal-light > td:first-child, .score-flash.assist-light > td:first-child { animation: none; }
+  .rank-value.medal-shine::after { display: none; }
+}
