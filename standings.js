@@ -178,6 +178,104 @@ function animateRowReorder(oldPositions) {
   });
 }
 
+// ---- Rank-change moods ----------------------------------------------
+// A team's logo briefly looks happy (hop + sparkle) after moving up the
+// standings, or sad (droop + tear) after moving down. Pure CSS
+// animations on the existing logo image (see .mood-happy/.mood-sad in
+// style.css) — no extra artwork needed.
+
+// Kept in sync with the longest mood animation in style.css, so the
+// classes/effects are cleaned up right as it finishes.
+const MOOD_MS = 3000;
+const HISTORY_URL_FOR_MOODS = "data/standings-history.json";
+
+// Each team's rank as of the last render, for spotting live rank changes
+// between polls. Reset alongside previousScores.
+let previousRanks = null;
+
+// Map of team name -> rank for a list of { name, score }, using the same
+// competition ranking as computeStandings (ties share a rank).
+function competitionRanks(teams) {
+  const sorted = teams.slice().sort((a, b) => b.score - a.score);
+  const ranks = new Map();
+  sorted.forEach((t, i) => {
+    ranks.set(t.name, i > 0 && t.score === sorted[i - 1].score ? ranks.get(sorted[i - 1].name) : i + 1);
+  });
+  return ranks;
+}
+
+// What to compare the current ranks against on a fresh page load, from
+// the daily snapshots: the latest one if anything has moved since, or —
+// when nothing has (e.g. the morning after, before tonight's games) — the
+// one before it, so visitors still see how last night's games shuffled
+// things. Null if there's not enough history.
+async function snapshotBaselineRanks(season, currentRanks) {
+  try {
+    const history = await fetch(HISTORY_URL_FOR_MOODS).then((r) => r.json());
+    const entries = (history[season] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+    const ranksOf = (entry) => competitionRanks(entry.standings.map((s) => ({ name: s.team, score: s.score })));
+    if (!entries.length) return null;
+    const latest = ranksOf(entries[entries.length - 1]);
+    const unchangedSinceLatest = [...currentRanks].every(([name, rank]) => latest.get(name) === rank);
+    if (!unchangedSinceLatest) return latest;
+    return entries.length >= 2 ? ranksOf(entries[entries.length - 2]) : null;
+  } catch {
+    return null; // moods are decoration — never let them break the page
+  }
+}
+
+// Team name -> { mood: "happy" | "sad", from, to } for every team whose
+// rank differs between `baseline` and `current` (teams missing from
+// either are skipped).
+function rankMoods(baseline, current) {
+  const moods = new Map();
+  if (!baseline) return moods;
+  current.forEach((to, name) => {
+    const from = baseline.get(name);
+    if (from === undefined || from === to) return;
+    moods.set(name, { mood: to < from ? "happy" : "sad", from, to });
+  });
+  return moods;
+}
+
+// Plays each team's mood animation on its logo in the rendered table.
+function playMoods(moods) {
+  if (!moods.size) return;
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    const name = tr.querySelector(".team-name a")?.textContent;
+    const wrap = tr.querySelector(".team-logo-wrap");
+    const change = name && moods.get(name);
+    if (!wrap || !change) return;
+
+    const spots = Math.abs(change.to - change.from);
+    wrap.title = `${change.mood === "happy" ? "▲ Up" : "▼ Down"} ${spots} spot${spots > 1 ? "s" : ""} (was #${change.from})`;
+    const fx = document.createElement("span");
+    fx.className = "mood-fx";
+    fx.setAttribute("aria-hidden", "true");
+    fx.textContent = change.mood === "happy" ? "✨" : "💧";
+    wrap.appendChild(fx);
+    wrap.classList.add(`mood-${change.mood}`);
+    setTimeout(() => {
+      wrap.classList.remove(`mood-${change.mood}`);
+      fx.remove();
+    }, MOOD_MS);
+  });
+}
+
+// ?preview-moods in the URL plays both moods on load (top half happy,
+// bottom half sad) — for seeing the animations without waiting for a
+// real rank change.
+function previewMoods(standings) {
+  const moods = new Map();
+  const half = Math.ceil(standings.length / 2);
+  standings.forEach((team, i) => {
+    moods.set(team.name, i < half
+      ? { mood: "happy", from: team.rank + 1, to: team.rank }
+      : { mood: "sad", from: team.rank, to: team.rank + 1 });
+  });
+  return moods;
+}
+
 function renderStandings(standings, season) {
   const topScore = standings.length ? standings[0].score : 0;
   // Only animate on a background poll update, not a fresh page/season
@@ -210,7 +308,11 @@ function renderStandings(standings, season) {
       : "";
     const teamHref = `team.html?name=${encodeURIComponent(team.name)}&season=${encodeURIComponent(season)}`;
     const logoSrc = getTeamLogo(season, team.name);
-    const logo = logoSrc ? `<img class="team-logo" src="${logoSrc}" alt="" width="28" height="28">` : "";
+    // Wrapped so a rank-change mood (see playMoods) can position its
+    // sparkle/tear effect relative to the logo.
+    const logo = logoSrc
+      ? `<span class="team-logo-wrap"><img class="team-logo" src="${logoSrc}" alt="" width="28" height="28"></span>`
+      : "";
 
     const tr = document.createElement("tr");
     if (scoreIncreased) tr.classList.add("score-flash");
@@ -246,6 +348,12 @@ function renderStandings(standings, season) {
   });
   if (oldPositions) animateRowReorder(oldPositions);
 
+  // Live rank changes since the last poll. A fresh load has no previous
+  // ranks — loadAndRender compares it against the daily snapshots instead.
+  const currentRanks = new Map(standings.map((t) => [t.name, t.rank]));
+  if (previousRanks) playMoods(rankMoods(previousRanks, currentRanks));
+  previousRanks = currentRanks;
+
   statusEl.hidden = true;
   table.hidden = false;
 }
@@ -276,6 +384,7 @@ async function loadAndRender(isInitialLoad) {
     statusEl.classList.add("loading-pulse");
     previousScores = null; // a fresh load or season switch shouldn't flash anything
     previousPlayerStats = null;
+    previousRanks = null;
   }
 
   try {
@@ -287,6 +396,20 @@ async function loadAndRender(isInitialLoad) {
     ]);
     const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster);
     renderStandings(standings, currentSeason);
+
+    if (isInitialLoad) {
+      if (new URLSearchParams(location.search).has("preview-moods")) {
+        setTimeout(() => playMoods(previewMoods(standings)), 400);
+      } else if (currentSeason === getPoolSeasons().at(-1)) {
+        // Only the season being played — a finished season's standings
+        // don't move, so there's nothing to react to.
+        const currentRanks = new Map(standings.map((t) => [t.name, t.rank]));
+        snapshotBaselineRanks(currentSeason, currentRanks).then((baseline) => {
+          // Short delay so the table has visibly settled before anything moves.
+          setTimeout(() => playMoods(rankMoods(baseline, currentRanks)), 400);
+        });
+      }
+    }
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.

@@ -399,6 +399,73 @@ tbody tr:hover { background: var(--row-hover); }
   object-fit: contain;
 }
 
+/* Rank-change moods (standings.js playMoods): the logo hops and wiggles
+   with a sparkle after moving up, or droops, greys and sheds a tear after
+   moving down. Keep the longest duration here in sync with MOOD_MS. */
+.team-logo-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+.team-logo-wrap .team-logo { transform-origin: 50% 90%; }
+
+.mood-happy .team-logo { animation: logo-happy 1.2s ease-in-out 2; }
+.mood-sad .team-logo { animation: logo-sad 2.6s ease-in-out; }
+
+@keyframes logo-happy {
+  0%, 100% { transform: none; }
+  15% { transform: translateY(-7px) rotate(-10deg) scale(1.15); }
+  30% { transform: translateY(0) scale(1.05); }
+  45% { transform: translateY(-5px) rotate(10deg) scale(1.15); }
+  60% { transform: translateY(0) scale(1); }
+  75% { transform: rotate(-6deg); }
+  90% { transform: rotate(6deg); }
+}
+
+@keyframes logo-sad {
+  0%, 100% { transform: none; filter: none; }
+  15%, 85% { transform: translateY(3px) rotate(-14deg) scale(0.88); filter: grayscale(0.8) brightness(0.8); }
+  /* a little sob */
+  35%, 55% { transform: translateY(4px) rotate(-11deg) scale(0.88); filter: grayscale(0.8) brightness(0.8); }
+  45%, 65% { transform: translateY(3px) rotate(-14deg) scale(0.88); filter: grayscale(0.8) brightness(0.8); }
+}
+
+.mood-fx {
+  position: absolute;
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+}
+.mood-happy .mood-fx {
+  top: -6px;
+  right: -8px;
+  animation: fx-sparkle 1.2s ease-out 2;
+}
+.mood-sad .mood-fx {
+  top: 12px;
+  left: -2px;
+  font-size: 11px;
+  animation: fx-tear 1.3s ease-in 0.4s 2;
+}
+
+@keyframes fx-sparkle {
+  0% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  30% { opacity: 1; transform: scale(1.1) rotate(20deg); }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.8) rotate(45deg); }
+}
+
+@keyframes fx-tear {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  25% { opacity: 1; transform: translateY(2px) scale(1); }
+  100% { opacity: 0; transform: translateY(14px) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mood-happy .team-logo, .mood-sad .team-logo { animation: none; }
+  .mood-fx { display: none; }
+}
+
 .team-name { font-weight: 600; }
 .team-name a { color: var(--text); text-decoration: none; }
 .team-name a:hover { color: var(--accent); text-decoration: underline; }
