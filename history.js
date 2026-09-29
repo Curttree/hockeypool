@@ -345,7 +345,11 @@ async function renderChart(season) {
         // every point being spaced evenly regardless of date.
         x: {
           type: "linear",
-          ticks: { color: chromeColors.muted, callback: (value) => formatDayOffset(baseTime, value) },
+          // precision: 0 keeps auto-picked tick steps whole numbers of
+          // days — otherwise a fractional step (e.g. every half day, on a
+          // short-enough range) rounds through formatDayOffset to the
+          // same calendar date twice in a row.
+          ticks: { color: chromeColors.muted, precision: 0, callback: (value) => formatDayOffset(baseTime, value) },
           grid: { color: chromeColors.border },
         },
         // precision: 0 keeps auto-picked tick steps whole numbers — points
