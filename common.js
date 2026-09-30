@@ -14,49 +14,137 @@ const API_BASE = isLocal ? "" : WORKER_URL;
 // the whole roster every time within a short window. Kept short so an
 // in-progress season's standings feel current.
 const ROSTER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// A roster that includes live game data (see fetchLive) goes stale much
+// faster — goals happen by the minute.
+const LIVE_ROSTER_CACHE_TTL_MS = 60 * 1000; // 1 minute
 const ROSTER_CACHE_KEY_PREFIX = "nhl-points-roster-cache:";
-const rosterCache = new Map();
+const rosterCache = new Map(); // season -> { expiresAt, players }
 
 function getCachedRoster(season) {
-  if (rosterCache.has(season)) return rosterCache.get(season);
-  try {
-    const raw = sessionStorage.getItem(ROSTER_CACHE_KEY_PREFIX + season);
-    if (raw) {
-      const { timestamp, players } = JSON.parse(raw);
-      if (Date.now() - timestamp < ROSTER_CACHE_TTL_MS) {
-        rosterCache.set(season, players);
-        return players;
-      }
+  let entry = rosterCache.get(season);
+  if (!entry) {
+    try {
+      const raw = sessionStorage.getItem(ROSTER_CACHE_KEY_PREFIX + season);
+      if (raw) entry = JSON.parse(raw);
+    } catch {
+      // ignore (storage disabled/corrupt)
     }
-  } catch {
-    // ignore (storage disabled/corrupt)
+  }
+  if (entry && entry.expiresAt > Date.now() && Array.isArray(entry.players)) {
+    rosterCache.set(season, entry);
+    return entry.players;
   }
   return null;
 }
 
-function setCachedRoster(season, players) {
-  rosterCache.set(season, players);
+function setCachedRoster(season, players, ttlMs = ROSTER_CACHE_TTL_MS) {
+  const entry = { expiresAt: Date.now() + ttlMs, players };
+  rosterCache.set(season, entry);
   try {
-    sessionStorage.setItem(ROSTER_CACHE_KEY_PREFIX + season, JSON.stringify({ timestamp: Date.now(), players }));
+    sessionStorage.setItem(ROSTER_CACHE_KEY_PREFIX + season, JSON.stringify(entry));
   } catch {
     // ignore (storage full/disabled)
   }
+}
+
+// Live points from in-progress and just-finished games (worker.js's
+// /api/live): per-player goals/assists for the NHL's current game date
+// and the previous one that had games, plus `from` (the earliest of
+// those dates). The stats API only includes games after they end — and
+// can lag behind even then — so season totals are fetched from before
+// `from` and these are added on top, never counting a game twice.
+// Returns null if the backend has no /api/live (app.py locally, or a
+// Worker that hasn't been redeployed yet) — callers then fall back to
+// stats-only totals. Shared for a few seconds so fetching two seasons at
+// once doesn't make two requests.
+let liveRequest = null;
+let liveRequestAt = 0;
+function fetchLive() {
+  if (!liveRequest || Date.now() - liveRequestAt > 10 * 1000) {
+    liveRequestAt = Date.now();
+    liveRequest = fetch(`${API_BASE}/api/live`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => (data && data.from && Array.isArray(data.players) ? data : null))
+      .catch(() => null);
+  }
+  return liveRequest;
+}
+
+// "William Nylander" -> "w. nylander" — how live box scores name players.
+function abbreviatedNameKey(fullName) {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName.toLowerCase();
+  return `${parts[0].charAt(0)}. ${parts.slice(1).join(" ")}`.toLowerCase();
+}
+
+// Adds live game points onto season-to-date totals (matched by NHL
+// playerId). Anyone in the live data but not the totals — e.g. everyone,
+// on opening night — gets a new record; their full name comes from
+// `knownPlayers` (another season's roster) when possible, else the box
+// score's abbreviated one ("W. Nylander"), which resolvePlayer can still
+// match against a full name.
+function mergeLivePlayers(basePlayers, livePlayers, knownPlayers) {
+  const byId = new Map(basePlayers.map((p) => [p.playerId, { ...p }]));
+  const knownById = new Map(knownPlayers.map((p) => [p.playerId, p]));
+  livePlayers.forEach((lp) => {
+    const existing = byId.get(lp.playerId);
+    if (existing) {
+      existing.goals += lp.goals;
+      existing.assists += lp.assists;
+      existing.points += lp.points;
+      existing.gamesPlayed += lp.gamesPlayed;
+      return;
+    }
+    const known = knownById.get(lp.playerId);
+    const abbreviated = !known;
+    byId.set(lp.playerId, {
+      playerId: lp.playerId,
+      skaterFullName: known ? known.skaterFullName : lp.name,
+      lastName: known ? known.lastName : lp.name.replace(/^\S+\s+/, ""),
+      positionCode: known ? known.positionCode : undefined,
+      teamAbbrevs: lp.team,
+      goals: lp.goals,
+      assists: lp.assists,
+      points: lp.points,
+      gamesPlayed: lp.gamesPlayed,
+      liveOnly: true,
+      nameIsAbbreviated: abbreviated,
+    });
+  });
+  return [...byId.values()];
 }
 
 // Fetches the full-season roster (~900+ skaters) in a single request —
 // limit=-1 tells the NHL API to return every row. Don't paginate this:
 // the proxy has no stable unique sort key (it silently ignores unknown
 // ones like "id"), and without one, separately-fetched pages overlap, so
-// some players get duplicated and others dropped entirely.
+// some players get duplicated and others dropped entirely. For the season
+// being played, live game points (fetchLive) are merged in when the
+// backend supports it.
 async function fetchAllPlayersForSeason(season) {
   const cached = getCachedRoster(season);
   if (cached) return cached;
 
+  const live = await fetchLive();
+  const useLive = Boolean(live && live.season === String(season));
+
   const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
+  if (useLive) params.set("before", live.from);
   const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
 
-  setCachedRoster(season, players);
-  return players;
+  if (!useLive) {
+    setCachedRoster(season, players);
+    return players;
+  }
+
+  // Full names for anyone who only appears in the live data.
+  // (Computed here rather than via teams.js's previousSeasonId — the
+  // Players page loads this file without teams.js.)
+  const priorSeason = `${parseInt(String(season).slice(0, 4), 10) - 1}${parseInt(String(season).slice(4), 10) - 1}`;
+  const knownPlayers = await fetchAllPlayersForSeason(priorSeason).catch(() => []);
+  const merged = mergeLivePlayers(players, live.players, knownPlayers);
+  setCachedRoster(season, merged, LIVE_ROSTER_CACHE_TTL_MS);
+  return merged;
 }
 
 // Groups a roster fetch by lowercased full name, so a name shared by
@@ -86,6 +174,10 @@ function buildRosterIndex(roster) {
     }
     keys.forEach((key) => add(key, p));
     add(`#${p.playerId}`, p);
+    // Live-only records named like "W. Nylander" (see mergeLivePlayers)
+    // also go under a separate abbreviated key for resolvePlayer's
+    // fallback — never mixed in with full-name matches.
+    if (p.nameIsAbbreviated) add(`~${fullName}`, p);
   });
   return index;
 }
@@ -103,7 +195,10 @@ function resolvePlayer(rosterIndex, name, teamHint, positionHint, idHint) {
     const [player] = rosterIndex.get(`#${idHint}`) || [];
     return { player: player || null, ambiguous: false };
   }
-  const candidates = rosterIndex.get(name.toLowerCase()) || [];
+  let candidates = rosterIndex.get(name.toLowerCase()) || [];
+  // No full-name match: try a live-only player known just by an
+  // abbreviated name, e.g. "W. Nylander" for "William Nylander".
+  if (!candidates.length) candidates = rosterIndex.get(`~${abbreviatedNameKey(name)}`) || [];
   if (candidates.length <= 1) {
     return { player: candidates[0] || null, ambiguous: false };
   }

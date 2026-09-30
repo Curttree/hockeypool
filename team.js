@@ -47,13 +47,6 @@ function formatSeasonLabel(seasonId) {
   return `${start}-${end}`;
 }
 
-// "Connor McDavid" -> "McDavid, C" (matches the pool site's roster format)
-function shortName(fullName, lastName) {
-  const first = fullName.slice(0, fullName.length - lastName.length).trim();
-  const initial = first.charAt(0);
-  return `${lastName}, ${initial}`;
-}
-
 // Polling interval is just how often the UI checks in — the actual
 // network cost is capped by fetchAllPlayersForSeason's/fetchInjuries's
 // own 5-minute caches regardless of how often this fires, so it's cheap
@@ -234,7 +227,10 @@ function renderTeam(rows, totalCost) {
     const tradedBadge = tradedOut
       ? `<span class="traded-badge" title="Traded away — stats locked as of the trade">Traded</span>`
       : "";
-    const displayName = player ? shortName(player.skaterFullName, player.lastName) : name;
+    // Always the full name as written in teams.js — consistent for every
+    // row, and the spelling people know (the NHL's own can differ, e.g.
+    // "Nicholas Paul", or be abbreviated in live data, e.g. "A. Barkov").
+    const displayName = name;
     const costCell = `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
     if (lastNight != null) totalLastNight = (totalLastNight || 0) + lastNight;
     const lastNightCell = `<td class="num last-night${lastNight > 0 ? " scored" : ""}">${lastNight == null ? "—" : lastNight}</td>`;
