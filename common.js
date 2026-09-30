@@ -101,10 +101,54 @@ function fetchLive() {
           saveLastLive(data);
           return data;
         }
-        return loadLastLive();
+        const last = loadLastLive();
+        // Flagged so liveRefreshMs retries soon rather than trusting an
+        // old schedule to decide when to check again.
+        return last ? { ...last, reused: true } : null;
       });
   }
   return liveRequest;
+}
+
+// How long live data can be reused before anything could have changed —
+// i.e. how long until the site needs to ask /api/live again:
+//   - a game is on (or warming up, or past its start time): every
+//     LIVE_ROSTER_CACHE_TTL_MS
+//   - nothing on yet: until shortly before the next scheduled start
+//   - nothing on at all (all final, off days, offseason): hourly, which
+//     also picks up the next day's schedule once the NHL posts it
+// Never longer than LIVE_IDLE_MAX_MS, never shorter than the live rate.
+const LIVE_IDLE_MAX_MS = 60 * 60 * 1000; // 1 hour
+const LIVE_PREGAME_LEAD_MS = 2 * 60 * 1000; // start checking 2 minutes early
+const ACTIVE_GAME_STATES = new Set(["PRE", "LIVE", "CRIT"]);
+
+function liveRefreshMs(live) {
+  if (!live || live.reused) return LIVE_ROSTER_CACHE_TTL_MS; // retry soon after an error
+  const now = Date.now();
+  const games = live.games || [];
+  const startOf = (g) => (g.startTimeUTC ? Date.parse(g.startTimeUTC) : NaN);
+  const underway = games.some((g) =>
+    ACTIVE_GAME_STATES.has(g.state) || (g.state === "FUT" && startOf(g) <= now)
+  );
+  if (underway) return LIVE_ROSTER_CACHE_TTL_MS;
+
+  const upcoming = games.filter((g) => g.state === "FUT");
+  // An upcoming game with no start time (a Worker that predates
+  // startTimeUTC) — can't tell when it starts, so keep polling normally.
+  if (upcoming.some((g) => Number.isNaN(startOf(g)))) return LIVE_ROSTER_CACHE_TTL_MS;
+  const nextStart = Math.min(...upcoming.map(startOf));
+  const untilNext = Number.isFinite(nextStart) ? nextStart - LIVE_PREGAME_LEAD_MS - now : LIVE_IDLE_MAX_MS;
+  return Math.max(LIVE_ROSTER_CACHE_TTL_MS, Math.min(LIVE_IDLE_MAX_MS, untilNext));
+}
+
+// True for a season that's already over (NHL seasons wrap up by June) —
+// no live games to check for, and its totals never change. Same rule as
+// worker.js's lastCompletedSeasonId.
+function isCompletedSeason(season) {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const lastCompletedEnd = now.getUTCMonth() + 1 >= 7 ? year : year - 1;
+  return parseInt(String(season).slice(4), 10) <= lastCompletedEnd;
 }
 
 // "William Nylander" -> "w. nylander" — how live box scores name players.
@@ -158,9 +202,28 @@ function mergeLivePlayers(basePlayers, livePlayers, knownPlayers) {
 // some players get duplicated and others dropped entirely. For the season
 // being played, live game points (fetchLive) are merged in when the
 // backend supports it.
-async function fetchAllPlayersForSeason(season) {
+//
+// Concurrent calls for the same season (e.g. the standings table and the
+// chart on page load) share one in-flight request instead of each
+// fetching before the other's result is cached.
+const rosterRequests = new Map(); // season -> in-flight Promise
+function fetchAllPlayersForSeason(season) {
   const cached = getCachedRoster(season);
-  if (cached) return cached;
+  if (cached) return Promise.resolve(cached);
+  const key = String(season);
+  if (!rosterRequests.has(key)) {
+    rosterRequests.set(key, loadRosterForSeason(season).finally(() => rosterRequests.delete(key)));
+  }
+  return rosterRequests.get(key);
+}
+
+async function loadRosterForSeason(season) {
+  if (isCompletedSeason(season)) {
+    const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
+    const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+    setCachedRoster(season, players, LIVE_IDLE_MAX_MS); // final — nothing to refresh
+    return players;
+  }
 
   const live = await fetchLive();
   const useLive = Boolean(live && live.season === String(season));
@@ -170,7 +233,10 @@ async function fetchAllPlayersForSeason(season) {
   const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
 
   if (!useLive) {
-    setCachedRoster(season, players);
+    // No games in the live window at all (e.g. the offseason) — totals
+    // can't move, so there's no need to keep asking every few minutes.
+    const idle = live && !live.reused && live.season === null;
+    setCachedRoster(season, players, idle ? LIVE_IDLE_MAX_MS : ROSTER_CACHE_TTL_MS);
     return players;
   }
 
@@ -180,7 +246,7 @@ async function fetchAllPlayersForSeason(season) {
   const priorSeason = `${parseInt(String(season).slice(0, 4), 10) - 1}${parseInt(String(season).slice(4), 10) - 1}`;
   const knownPlayers = await fetchAllPlayersForSeason(priorSeason).catch(() => []);
   const merged = mergeLivePlayers(players, live.players, knownPlayers);
-  setCachedRoster(season, merged, LIVE_ROSTER_CACHE_TTL_MS);
+  setCachedRoster(season, merged, liveRefreshMs(live));
   return merged;
 }
 

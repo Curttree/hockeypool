@@ -216,6 +216,8 @@ async function handleLive() {
       home: g.homeTeam && g.homeTeam.abbrev,
       awayScore: g.awayTeam && g.awayTeam.score,
       homeScore: g.homeTeam && g.homeTeam.score,
+      // Lets the site skip polling until the next game actually starts.
+      startTimeUTC: g.startTimeUTC,
     })),
     players: [...players.values()],
   }, 200, LIVE_CACHE_TTL);
