@@ -38,7 +38,7 @@ const CORS_HEADERS = {
 const PLAYERS_CACHE_TTL = 3600; // 1 hour — completed seasons
 const CURRENT_PLAYERS_CACHE_TTL = 300; // 5 minutes — the season being played
 const SEASON_CACHE_TTL = 21600; // 6 hours — the "current season" boundary only flips a couple of times a year
-const LIVE_CACHE_TTL = 30; // seconds — /api/live, i.e. in-progress games
+const LIVE_CACHE_TTL = 60; // seconds — /api/live, i.e. in-progress games
 
 // Game states (api-web.nhle.com) for games that have started — only these
 // have player stats worth fetching.

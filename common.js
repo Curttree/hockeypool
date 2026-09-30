@@ -15,8 +15,9 @@ const API_BASE = isLocal ? "" : WORKER_URL;
 // in-progress season's standings feel current.
 const ROSTER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // A roster that includes live game data (see fetchLive) goes stale much
-// faster — goals happen by the minute.
-const LIVE_ROSTER_CACHE_TTL_MS = 60 * 1000; // 1 minute
+// faster — goals happen by the minute. Two minutes keeps Worker requests
+// modest (see worker.js) while still feeling live.
+const LIVE_ROSTER_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 const ROSTER_CACHE_KEY_PREFIX = "nhl-points-roster-cache:";
 const rosterCache = new Map(); // season -> { expiresAt, players }
 
@@ -57,6 +58,35 @@ function setCachedRoster(season, players, ttlMs = ROSTER_CACHE_TTL_MS) {
 // Worker that hasn't been redeployed yet) — callers then fall back to
 // stats-only totals. Shared for a few seconds so fetching two seasons at
 // once doesn't make two requests.
+//
+// If a request fails (a Cloudflare limit, a network blip), the last good
+// response is reused instead — otherwise tonight's live points would
+// briefly vanish from everyone's totals and pop back a refresh later.
+// Kept in sessionStorage too, so a reload mid-blip doesn't lose it; only
+// reused for LIVE_FALLBACK_MAX_AGE_MS, after which stats-only totals are
+// the safer bet.
+const LIVE_FALLBACK_KEY = "nhl-points-last-live";
+const LIVE_FALLBACK_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+function saveLastLive(data) {
+  try {
+    sessionStorage.setItem(LIVE_FALLBACK_KEY, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    // ignore (storage full/disabled)
+  }
+}
+
+function loadLastLive() {
+  try {
+    const raw = sessionStorage.getItem(LIVE_FALLBACK_KEY);
+    if (!raw) return null;
+    const { savedAt, data } = JSON.parse(raw);
+    return Date.now() - savedAt < LIVE_FALLBACK_MAX_AGE_MS ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 let liveRequest = null;
 let liveRequestAt = 0;
 function fetchLive() {
@@ -65,7 +95,14 @@ function fetchLive() {
     liveRequest = fetch(`${API_BASE}/api/live`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => (data && data.from && Array.isArray(data.players) ? data : null))
-      .catch(() => null);
+      .catch(() => null)
+      .then((data) => {
+        if (data) {
+          saveLastLive(data);
+          return data;
+        }
+        return loadLastLive();
+      });
   }
   return liveRequest;
 }
