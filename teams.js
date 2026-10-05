@@ -155,6 +155,21 @@ function getTeamLogo(season, name) {
   return (team && team.logo) || null;
 }
 
+// Each pool team's accent color: its line on the "Standings Over Time"
+// chart, and the divider on its team page. Assigned by the team's position
+// in the season's team list — not its position in whatever data the chart
+// is showing, which shifts with the date range — so a team always has the
+// same color.
+const TEAM_COLORS = [
+  "#4ea1ff", "#ff8a4e", "#5ee6a0", "#e659c9", "#f4d35e", "#9d8cff", "#ff5c5c", "#5ec8e6",
+];
+
+// null for a name that isn't one of the season's teams.
+function getTeamColor(season, name) {
+  const index = getTeamsForSeason(season).findIndex((t) => t.name === name);
+  return index < 0 ? null : TEAM_COLORS[index % TEAM_COLORS.length];
+}
+
 // A season's end date, for the history chart's season-end projection
 // option. Falls back to April 15 of the season's second year if not
 // configured explicitly (see the schema comment above).

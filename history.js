@@ -12,10 +12,6 @@ const rangeSelect = document.getElementById("chart-range");
 const projectionNote = document.getElementById("projection-note");
 const chartControls = document.getElementById("chart-controls");
 
-const TEAM_COLORS = [
-  "#4ea1ff", "#ff8a4e", "#5ee6a0", "#e659c9", "#f4d35e", "#9d8cff", "#ff5c5c", "#5ec8e6",
-];
-
 // Days to look back from the most recent snapshot for each range option
 // (null = no limit, show the whole season — "projected" is the same
 // full-season view as "season", just with the trend line added too).
@@ -182,15 +178,15 @@ function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
           { x: lastPoint.x, y: lastPoint.y },
           { x: endX, y: projected },
         ],
-        borderColor: TEAM_COLORS[i % TEAM_COLORS.length],
-        backgroundColor: TEAM_COLORS[i % TEAM_COLORS.length],
+        borderColor: realDatasets[i].baseColor,
+        backgroundColor: realDatasets[i].baseColor,
         borderDash: [6, 4],
         pointRadius: [0, 5],
         tension: 0,
         isProjection: true,
         projectionFor: i,
         teamName: team,
-        baseColor: TEAM_COLORS[i % TEAM_COLORS.length],
+        baseColor: realDatasets[i].baseColor,
       };
     })
     .filter(Boolean);
@@ -304,18 +300,21 @@ async function renderChart(season) {
   const teamNames = [...new Set(entries.flatMap((e) => e.standings.map((s) => s.team)))];
 
   const datasets = await Promise.all(teamNames.map(async (team, i) => {
+    // A team no longer in the season's list (e.g. dropped from teams.js
+    // after it appears in older snapshots) falls back to a position-based color.
+    const color = getTeamColor(season, team) || TEAM_COLORS[i % TEAM_COLORS.length];
     const dataset = {
       label: team,
       data: entries.map((e) => {
         const found = e.standings.find((s) => s.team === team);
         return { x: dayOffset(e.date), y: found ? found.score : null };
       }),
-      borderColor: TEAM_COLORS[i % TEAM_COLORS.length],
-      backgroundColor: TEAM_COLORS[i % TEAM_COLORS.length],
+      borderColor: color,
+      backgroundColor: color,
       spanGaps: true,
       tension: 0.2,
       teamName: team,
-      baseColor: TEAM_COLORS[i % TEAM_COLORS.length],
+      baseColor: color,
     };
 
     const logoSrc = getTeamLogo(season, team);

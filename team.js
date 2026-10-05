@@ -87,6 +87,14 @@ async function init() {
   seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
   backLinkEl.href = `./?season=${encodeURIComponent(currentSeason)}`;
 
+  // The page's accents (see .has-team-color in style.css) take this team's
+  // line color from the Standings chart (see getTeamColor in teams.js).
+  const accent = getTeamColor(currentSeason, team.name);
+  if (accent) {
+    document.documentElement.style.setProperty("--team-color", accent);
+    document.body.classList.add("has-team-color");
+  }
+
   await loadAndRender(team, true);
   startPolling(team);
   // NHL logo <img> srcs are baked in at render time (see nhlTeamLogo), so

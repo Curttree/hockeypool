@@ -11,7 +11,7 @@ browsing/filtering NHL skater stats when drafting.
 | File | What it is |
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
-| `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season |
+| `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season. The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar, and the line above the totals row. |
 | `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 

@@ -123,6 +123,18 @@ h1 {
   flex-shrink: 0;
 }
 
+/* Team page accents in the team's chart color (--team-color, set by team.js):
+   a thicker divider under the header than the usual hairline, a faint wash
+   fading across the header, a ring on the team's avatar, and the same
+   thick line above the totals row. Lines, a ring and a wash rather than
+   text, since some team colors (the yellow) are too pale to read as text. */
+.has-team-color .team-header {
+  border-bottom: 3px solid var(--team-color);
+  background: linear-gradient(to right, color-mix(in srgb, var(--team-color) 22%, transparent), transparent 75%);
+}
+.has-team-color .team-title-logo { box-shadow: 0 0 0 3px var(--team-color); }
+.has-team-color .totals-row td { border-top: 3px solid var(--team-color); }
+
 /* NHL team logo beside the abbreviation in the team page's Team column. */
 .nhl-logo {
   width: 26px;
