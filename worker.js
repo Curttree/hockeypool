@@ -159,7 +159,10 @@ async function fetchWebJson(path, cacheTtl) {
 // that had games — covering both tonight's games and last night's (which
 // the stats API can take a while to include). Shape:
 //   { season, from, dates, games: [...], players: [{ playerId, name,
-//     team, goals, assists, points, gamesPlayed }] }
+//     team, goals, assists, points, gamesPlayed,
+//     byDate: { "YYYY-MM-DD": { goals, assists, points } } }] }
+// byDate is the same totals split by game date, so the Standings page's
+// "Tonight" column can tell one night's points from another's.
 // The site pairs it with /api/players?before=<from>, so nothing is
 // counted twice.
 async function handleLive() {
@@ -181,7 +184,7 @@ async function handleLive() {
   ));
 
   const players = new Map();
-  boxscores.filter(Boolean).forEach(({ box }) => {
+  boxscores.filter(Boolean).forEach(({ game, box }) => {
     ["awayTeam", "homeTeam"].forEach((side) => {
       const teamAbbrev = box[side] && box[side].abbrev;
       const stats = (box.playerByGameStats || {})[side] || {};
@@ -194,12 +197,21 @@ async function handleLive() {
           assists: 0,
           points: 0,
           gamesPlayed: 0,
+          byDate: {},
         };
-        entry.goals += p.goals || 0;
-        entry.assists += p.assists || 0;
-        entry.points += (p.goals || 0) + (p.assists || 0);
+        const goals = p.goals || 0;
+        const assists = p.assists || 0;
+        entry.goals += goals;
+        entry.assists += assists;
+        entry.points += goals + assists;
         entry.gamesPlayed += 1;
         entry.team = teamAbbrev || entry.team;
+        // Present from the moment a game starts (even at 0 points), which
+        // is how the site knows a night's games are underway.
+        const day = entry.byDate[game.gameDate] || (entry.byDate[game.gameDate] = { goals: 0, assists: 0, points: 0 });
+        day.goals += goals;
+        day.assists += assists;
+        day.points += goals + assists;
         players.set(p.playerId, entry);
       });
     });

@@ -174,6 +174,7 @@ function mergeLivePlayers(basePlayers, livePlayers, knownPlayers) {
       existing.assists += lp.assists;
       existing.points += lp.points;
       existing.gamesPlayed += lp.gamesPlayed;
+      existing.byDate = lp.byDate; // per-night split, for the Standings "Tonight" column
       return;
     }
     const known = knownById.get(lp.playerId);
@@ -188,6 +189,7 @@ function mergeLivePlayers(basePlayers, livePlayers, knownPlayers) {
       assists: lp.assists,
       points: lp.points,
       gamesPlayed: lp.gamesPlayed,
+      byDate: lp.byDate,
       liveOnly: true,
       nameIsAbbreviated: abbreviated,
     });
@@ -375,6 +377,19 @@ async function fetchInjuries() {
   } catch {
     return new Map();
   }
+}
+
+// "YYYY-MM-DD" in US Eastern time for a moment (default: now) — the
+// calendar the NHL files its games under (a 10pm ET puck drop is still
+// that evening's game even once it's the next day in UTC), whatever
+// timezone the viewer is in.
+function easternDate(moment = new Date()) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(moment)
+      .map((p) => [p.type, p.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 // NHL team logo URL from the NHL's own asset CDN. It ships both "_dark"

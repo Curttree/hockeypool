@@ -10,7 +10,7 @@ browsing/filtering NHL skater stats when drafting.
 
 | File | What it is |
 | --- | --- |
-| `index.html` | Standings — the pool leaderboard with a season picker, plus a "Standings Over Time" line chart |
+| `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
 | `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season |
 | `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
@@ -165,6 +165,16 @@ always just show their full history.
   page polls on the same schedule; each poll refetches the two days'
   scoreboards and the box scores of games still in progress, while a
   finished game's box score is only fetched once per page load.
+- **"Tonight" column**: each team's points from the current night's
+  games only (the Worker's `/api/live` splits every player's live points
+  by game date, so one night's points can be told from another's). It
+  appears once the night's first game has started and stays up after the
+  games end, until the nightly snapshot lands — at that point the recap
+  banner reports the same night and the column hides until the next
+  night's first game starts. A night runs on the NHL's US Eastern game
+  date and rolls over at 6am Eastern, so late games finishing after
+  midnight still count toward that evening. It needs `/api/live`, so it
+  only shows when deployed (the local `app.py` doesn't have that route).
 - **Daily snapshots**: see "Standings history & chart" above —
   a scheduled GitHub Action, not anything running on Cloudflare or
   GitHub Pages itself (neither can run code on a schedule).

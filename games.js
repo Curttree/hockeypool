@@ -22,18 +22,6 @@ let lastDays = null;
 // External (NHL) strings end up in innerHTML below.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-// The NHL files every game under its US Eastern calendar date (a 10pm ET
-// puck drop is still "tonight" even once it's tomorrow in UTC), so "today"
-// and "yesterday" are Eastern too, whatever timezone the viewer is in.
-function easternToday() {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" })
-      .formatToParts(new Date())
-      .map((p) => [p.type, p.value])
-  );
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
 // Noon UTC so the day arithmetic can't be thrown off by a DST boundary.
 function previousDate(dateStr) {
   const d = new Date(`${dateStr}T12:00:00Z`);
@@ -245,7 +233,9 @@ async function loadAndRender(season, isInitialLoad) {
   if (isInitialLoad) previousPoints = null; // a fresh load shouldn't flash anything
 
   try {
-    const today = easternToday();
+    // The NHL files games under their US Eastern date, so "today" and
+    // "yesterday" are Eastern too.
+    const today = easternDate();
     const dates = [today, previousDate(today)];
     const [roster, previousRoster, ...scoreboards] = await Promise.all([
       fetchAllPlayersForSeason(season),

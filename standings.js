@@ -2,6 +2,7 @@ const statusEl = document.getElementById("status");
 const seasonSelect = document.getElementById("season");
 const table = document.getElementById("standings-table");
 const tbody = table.querySelector("tbody");
+const tonightHeader = document.getElementById("tonight-header");
 
 function formatSeasonLabel(seasonId) {
   const start = seasonId.slice(0, 4);
@@ -14,13 +15,17 @@ function formatSeasonLabel(seasonId) {
 // the Standings page, in case the pool enforces a salary-cap-style limit.
 const COST_WARNING_THRESHOLD = 1000;
 
-function computeStandings(season, teams, roster, previousRoster) {
+// `tonightDate` (see tonightDateFor) is the night whose points get tallied
+// into each team's `tonight` — left null, so is every team's `tonight`,
+// when there's no night to show.
+function computeStandings(season, teams, roster, previousRoster, tonightDate = null) {
   const rosterIndex = buildRosterIndex(roster);
   const previousRosterIndex = buildRosterIndex(previousRoster);
 
   const results = teams
     .map((team) => {
       let score = 0;
+      let tonight = tonightDate ? 0 : null;
       const missing = [];
       const ambiguous = [];
       // Each credited player's own goals/assists/points, kept alongside
@@ -54,6 +59,9 @@ function computeStandings(season, teams, roster, previousRoster) {
         if (credited) {
           score += credited.points;
           playerBreakdown.push({ name, ...credited });
+          // Traded away is handled above (frozen, so nothing new tonight).
+          const night = tonightDate && player && player.byDate && player.byDate[tonightDate];
+          if (night) tonight += night.points;
         } else if (!existsInRoster(previousRosterIndex, entry)) {
           // No stats yet is fine for anyone who was around last season;
           // only flag names we can't find in either.
@@ -62,7 +70,7 @@ function computeStandings(season, teams, roster, previousRoster) {
       });
       const cost = computeTeamCost(season, team, previousRosterIndex);
       const activeCount = countActivePlayers(season, team);
-      return { name: team.name, score, missing, ambiguous, cost, activeCount, playerBreakdown };
+      return { name: team.name, score, tonight, missing, ambiguous, cost, activeCount, playerBreakdown };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -74,6 +82,55 @@ function computeStandings(season, teams, roster, previousRoster) {
   });
 
   return results;
+}
+
+// ---- "Tonight" column ---------------------------------------------------
+// Points each team gained in the current night's games. Shown once the
+// night's first game has started, and kept up after the games end — until
+// the nightly snapshot lands, at which point the recap banner (recap.js)
+// reports that same night and this column steps aside until the next
+// night's first game starts.
+
+// A night rolls over at 6am Eastern rather than midnight, so a late game
+// running past midnight still belongs to that evening — and by morning
+// it's already the next (not yet started) night. The NHL's own "current
+// date" isn't used: it was still reporting the previous night at 10am.
+const NIGHT_ROLLOVER_MS = 6 * 60 * 60 * 1000;
+
+function currentNightDate() {
+  return easternDate(new Date(Date.now() - NIGHT_ROLLOVER_MS));
+}
+
+// The date of the most recent daily snapshot (what the recap banner is
+// built from), fetched at most every 10 minutes — the file only changes
+// once a day. A failed fetch keeps the last known value and retries on the
+// next poll.
+const SNAPSHOT_HISTORY_URL = "data/standings-history.json";
+const SNAPSHOT_DATE_TTL_MS = 10 * 60 * 1000;
+let snapshotDateCache = { season: null, date: null, fetchedAt: 0 };
+
+async function latestSnapshotDate(season) {
+  const cache = snapshotDateCache;
+  if (cache.season === season && Date.now() - cache.fetchedAt < SNAPSHOT_DATE_TTL_MS) return cache.date;
+  try {
+    const history = await fetch(SNAPSHOT_HISTORY_URL).then((r) => r.json());
+    const dates = (history[season] || []).map((e) => e.date).sort();
+    snapshotDateCache = { season, date: dates.length ? dates[dates.length - 1] : null, fetchedAt: Date.now() };
+  } catch {
+    // keep what we had
+  }
+  return snapshotDateCache.season === season ? snapshotDateCache.date : null;
+}
+
+// The night to tally into the "Tonight" column, or null when it shouldn't
+// show: no game of the current night has started yet (the live data lists
+// a player under a night from the moment that game starts, even at 0
+// points), or the latest snapshot already covers the night.
+async function tonightDateFor(season, roster) {
+  const night = currentNightDate();
+  if (!roster.some((p) => p.byDate && p.byDate[night])) return null;
+  const snapshot = await latestSnapshotDate(season);
+  return snapshot && snapshot >= night ? null : night;
 }
 
 // Gold/silver/bronze medal badge for the top 3 ranks — a flat colored
@@ -411,6 +468,15 @@ function renderStandings(standings, season) {
   // before the season starts).
   const leadersHaveScored = standings.length > 0 && standings[0].score > 0;
 
+  // Every team has a `tonight` number or none does (see computeStandings).
+  const showTonight = standings.some((t) => t.tonight != null);
+  // Missing only if a browser pairs a cached older index.html with this
+  // script right after a deploy — then there's just no column.
+  const hasTonight = showTonight && Boolean(tonightHeader);
+  if (tonightHeader) tonightHeader.hidden = !hasTonight;
+  table.classList.toggle("has-tonight", hasTonight); // phone padding tweak in style.css
+  const columnCount = hasTonight ? 7 : 6;
+
   tbody.innerHTML = "";
   standings.forEach((team, i) => {
     const prevScore = previousScores ? previousScores.get(team.name) : undefined;
@@ -456,6 +522,7 @@ function renderStandings(standings, season) {
       <td class="team-logo-col">${logo}</td>
       <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
       <td class="num score"><span class="score-num">${(scoreIncreased ? prevScore : team.score).toLocaleString()}</span></td>
+      ${hasTonight ? `<td class="num tonight${team.tonight > 0 ? " scored" : ""}">+${team.tonight.toLocaleString()}</td>` : ""}
       <td class="num">${behindNext}</td>
       <td class="num">${behind1st}</td>
     `;
@@ -471,7 +538,7 @@ function renderStandings(standings, season) {
     if (change) {
       const eventRow = document.createElement("tr");
       eventRow.className = `score-flash score-event-row ${lightClass}`;
-      eventRow.innerHTML = `<td colspan="6"><div class="score-event">${change.text}</div></td>`;
+      eventRow.innerHTML = `<td colspan="${columnCount}"><div class="score-event">${change.text}</div></td>`;
       tbody.appendChild(eventRow);
       setTimeout(() => eventRow.remove(), SCORE_FLASH_MS);
     }
@@ -537,7 +604,9 @@ async function loadAndRender(isInitialLoad) {
       // the standings themselves from rendering.
       fetchAllPlayersForSeason(previousSeasonId(currentSeason)).catch(() => []),
     ]);
-    const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster);
+    // ?preview-fx's made-up update has no per-night data to show.
+    const tonightDate = previewMode ? null : await tonightDateFor(currentSeason, roster);
+    const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster, tonightDate);
     // Read before rendering — renderStandings overwrites the cache.
     const cachedRanks = isInitialLoad ? loadCachedRanks(currentSeason) : null;
     renderStandings(standings, currentSeason);

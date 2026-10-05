@@ -478,6 +478,21 @@ tbody tr:hover { background: var(--row-hover); }
   color: var(--muted);
 }
 
+/* Standings "Tonight" column — muted until a team has scored, then the same
+   green as the recap banner's rank-up arrows. */
+.tonight { color: var(--muted); }
+.tonight.scored { color: #2fb56a; font-weight: 700; }
+
+/* On a phone the table already scrolls sideways, and the extra column would
+   sit half cut off at the edge (under the scroll fade) — so trim the
+   horizontal padding while it's showing. The clamp is the normal 14px from
+   ~700px wide up, so larger screens look the same as ever. */
+#standings-table.has-tonight th:not(.team-logo-col),
+#standings-table.has-tonight td:not(.team-logo-col):not([colspan]) {
+  padding-left: clamp(6px, 2vw, 14px);
+  padding-right: clamp(6px, 2vw, 14px);
+}
+
 .injury-icon {
   display: inline-flex;
   align-items: center;
