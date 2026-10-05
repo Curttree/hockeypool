@@ -403,12 +403,18 @@ function nhlLogoUrl(abbrev) {
   return `https://assets.nhle.com/logos/nhl/svg/${abbrev}_${variant}.svg`;
 }
 
+// Same idea for a logo the NHL supplies as a { light, dark } pair of URLs —
+// e.g. a TV network's `logoUrls` on a game's tvBroadcasts entry.
+function themedLogoUrl(logoUrls) {
+  return logoUrls[document.documentElement.dataset.theme === "light" ? "light" : "dark"];
+}
+
 // Tap-to-show tooltips. Touch devices have no hover, so the native
 // `title` tooltips on these icons/badges never appear on mobile. Tapping
 // one shows its title text in a small popover instead; tapping anywhere
 // else (or scrolling) closes it. Works on desktop clicks too. Uses event
 // delegation since table rows are re-rendered on every refresh.
-const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge, .prev-team, #last-night-header";
+const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge, .prev-team, #last-night-header, .watch-label, .watch-logo, .watch-badge";
 let tapTipEl = null;
 let tapTipAnchor = null;
 

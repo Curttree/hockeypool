@@ -162,6 +162,132 @@ function ownerIcon(season, teamName) {
     : `<span class="owner-icon owner-fallback" title="${label}">${esc(teamName.charAt(0))}</span>`;
 }
 
+// ---- Where to watch -----------------------------------------------------
+// From the TV broadcasts the NHL lists on each game (tvBroadcasts). The ones
+// that reach a viewer in Southwestern Ontario are shown as ways to watch; if
+// there are none, the broadcasts listed for other regions are shown instead
+// (labelled "Elsewhere", with the source and region in each tooltip). The
+// feed can't say anything about blackouts or which TV package you have, so
+// this is "who's showing it that you could plausibly get", not a guarantee.
+
+// Canadian networks to offer a Southwestern Ontario viewer, by the NHL's
+// network code. `logoId` is the NHL's own logo for it; the NHL has none for
+// TSN, so that gets a plain text badge instead.
+const WATCH_NETWORKS = {
+  SN: { name: "Sportsnet", logoId: 282 },
+  SN1: { name: "Sportsnet ONE", logoId: 284 },
+  "SN+": { name: "Sportsnet+ (streaming)", logoId: 549 },
+  Prime: { name: "Prime Video (streaming)", logoId: 548 },
+  // The Maple Leafs' regional TSN feed, which covers Southwestern Ontario.
+  // TSN2/3/5 are Montreal's, Winnipeg's and Ottawa's.
+  TSN4: { name: "TSN4" },
+};
+
+// Canadian feeds that don't serve this viewer: other regions' Sportsnet feeds
+// (which the NHL oddly files as national, so the market can't be trusted to
+// rule them out) and the French-language ones. Any other TSN regional feed is
+// dropped by the market rule in watchOptions.
+const NOT_WATCHABLE = new Set(["SNW", "SNP", "SNE", "TVAS", "TVAS2", "RDS", "RDS2", "RDSI"]);
+
+// Full names for networks the NHL only gives a code for — just the ones
+// that are unambiguous. Anything else (mostly US regional sports networks)
+// is shown under the NHL's own code rather than a guess.
+const NETWORK_NAMES = {
+  SNW: "Sportsnet West",
+  SNP: "Sportsnet Pacific",
+  SNE: "Sportsnet East",
+  TVAS: "TVA Sports (French)",
+  TVAS2: "TVA Sports 2 (French)",
+  RDS: "RDS (French)",
+  RDS2: "RDS2 (French)",
+  RDSI: "RDS Info (French)",
+  NHLN: "NHL Network",
+  HULU: "Hulu",
+  "HBO MAX": "HBO Max",
+};
+
+// The Sportsnet feeds the NHL files as "national" but that are really one
+// region's.
+const REGION_OVERRIDES = { SNW: "Western Canada", SNP: "Pacific Canada", SNE: "Eastern Canada" };
+const COUNTRY_NAMES = { CA: "Canada", US: "United States" };
+
+// Where a broadcast is shown. The NHL's market is "N" for national, or "H"/"A"
+// for the home/away team's own territory.
+function broadcastRegion(b, game) {
+  if (REGION_OVERRIDES[b.network]) return REGION_OVERRIDES[b.network];
+  const country = COUNTRY_NAMES[b.countryCode] || b.countryCode;
+  if (b.market === "H") return `${game.homeTeam.name.default} market (home broadcast, ${country})`;
+  if (b.market === "A") return `${game.awayTeam.name.default} market (away broadcast, ${country})`;
+  return `${country}, nationwide`;
+}
+
+// The NHL's logo files are named by network id, as light/dark pairs.
+function broadcastLogos(networkId) {
+  const base = `https://assets.nhle.com/logos/broadcast/${networkId}`;
+  return { light: `${base}-light.svg`, dark: `${base}-dark.svg` };
+}
+
+function watchOption(b, game) {
+  const known = WATCH_NETWORKS[b.network];
+  return {
+    name: (known && known.name) || NETWORK_NAMES[b.network] || b.network,
+    region: broadcastRegion(b, game),
+    // The NHL only attaches logos to some listings; a known network falls
+    // back to its own logo even if this particular listing has none.
+    logos: known && known.logoId ? broadcastLogos(known.logoId) : b.logoUrls || null,
+    badge: b.network,
+    // Closest first among the "elsewhere" ones: Canada, then the US, then
+    // anywhere else — nationwide before a team's own territory.
+    closeness: (b.countryCode === "CA" ? 0 : b.countryCode === "US" ? 1 : 2) * 2 + (b.market === "N" ? 0 : 1),
+  };
+}
+
+// Splits one game's listings into the ways to watch from Southwestern
+// Ontario ("here") and everything else, for other regions ("elsewhere") —
+// one entry per network, in the NHL's listed order. A Canadian network not in
+// the table above counts as "here" only if it's national, otherwise it's some
+// other region's feed.
+function watchOptions(game) {
+  const seen = new Set();
+  const here = [];
+  const elsewhere = [];
+  (game.tvBroadcasts || []).forEach((b) => {
+    if (seen.has(b.network)) return;
+    seen.add(b.network);
+    const reachesViewer = b.countryCode === "CA" && !NOT_WATCHABLE.has(b.network)
+      && (Boolean(WATCH_NETWORKS[b.network]) || b.market === "N");
+    (reachesViewer ? here : elsewhere).push(watchOption(b, game));
+  });
+  elsewhere.sort((a, b) => a.closeness - b.closeness);
+  return { here, elsewhere };
+}
+
+function watchIcon(option) {
+  const tip = esc(`${option.name} — ${option.region}`);
+  return option.logos
+    ? `<img class="watch-logo" src="${esc(themedLogoUrl(option.logos))}" alt="${esc(option.name)}" title="${tip}" height="18">`
+    : `<span class="watch-badge" title="${tip}">${esc(option.badge)}</span>`;
+}
+
+// Only for games still to come or in progress — where it aired is no use
+// once it's over.
+function watchRow(game) {
+  if (gamePhase(game.gameState) === "final") return "";
+  const { here, elsewhere } = watchOptions(game);
+  const row = (label, tip, items, extraClass = "") => `
+      <div class="game-watch${extraClass}">
+        <span class="watch-label" title="${esc(tip)}">${label}</span>${items}
+      </div>`;
+
+  if (here.length) {
+    return row("Watch", "Broadcasts the NHL lists for this game that reach Southwestern Ontario. Blackouts and your TV package aren't accounted for.", here.map(watchIcon).join(""));
+  }
+  if (elsewhere.length) {
+    return row("Elsewhere", "Nothing the NHL lists for this game reaches Southwestern Ontario. These are the broadcasts it lists for other regions — hover or tap one for its source and region.",elsewhere.map(watchIcon).join(""), " is-elsewhere");
+  }
+  return row("Watch", "The NHL lists no broadcast for this game.", `<span class="watch-none">No broadcast listed</span>`);
+}
+
 function gameTeamBlock(team, isLoser) {
   return `
     <div class="game-team${isLoser ? " is-loser" : ""}">
@@ -200,7 +326,7 @@ function gameCard(season, { game, players }, currentPoints) {
           <div class="game-score">${started ? `${away.score ?? 0} <span class="game-score-sep">-</span> ${home.score ?? 0}` : "@"}</div>
         </div>
         ${gameTeamBlock(home, final && home.score < away.score)}
-      </div>
+      </div>${watchRow(game)}
       <div class="table-scroll">
         <table class="game-players">
           <thead><tr><th>Player</th><th>Team</th><th class="num">Pts</th></tr></thead>

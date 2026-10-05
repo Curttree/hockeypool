@@ -12,7 +12,7 @@ browsing/filtering NHL skater stats when drafting.
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
 | `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season |
-| `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. |
+| `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
 Shared logic lives in `common.js` (NHL data fetching + caching) and
@@ -175,6 +175,23 @@ always just show their full history.
   date and rolls over at 6am Eastern, so late games finishing after
   midnight still count toward that evening. It needs `/api/live`, so it
   only shows when deployed (the local `app.py` doesn't have that route).
+- **Where to watch** (Games page): each game's Canadian TV listings come
+  from the NHL's own score feed (`tvBroadcasts`), so there's no extra
+  request or Worker change. `games.js`'s `WATCH_NETWORKS` /
+  `NOT_WATCHABLE` tables decide which of those reach Southwestern Ontario
+  — national Sportsnet, Sportsnet+, Prime and TSN4 (the Maple Leafs'
+  regional feed) — and drop other regions' feeds (SNW/SNP/SNE,
+  TSN2/3/5) and the French-language ones; edit those two tables to
+  change the region or add a network. If nothing reaches Southwestern
+  Ontario, the row switches to "Elsewhere" and shows the broadcasts the
+  NHL lists for other regions (other Canadian regions, the US, French
+  feeds), dimmed, closest first — hover or tap one for its source and
+  region (e.g. "Sportsnet West — Western Canada"). The NHL has logos for
+  Sportsnet, Prime and the big US streamers but not TSN or the regional
+  sports networks, which get a text badge showing the NHL's own network
+  code (only the unambiguous ones are expanded to a full name, in
+  `NETWORK_NAMES`). The feed can't say anything about blackouts or which
+  TV package you have, so it's a best guess, not a guarantee.
 - **Daily snapshots**: see "Standings history & chart" above —
   a scheduled GitHub Action, not anything running on Cloudflare or
   GitHub Pages itself (neither can run code on a schedule).

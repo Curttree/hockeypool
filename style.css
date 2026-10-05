@@ -934,6 +934,42 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
   color: var(--muted);
 }
 
+/* "Watch" row under a not-yet-finished game's scoreboard: the Canadian
+   networks showing it (see WATCH_NETWORKS in games.js). */
+.game-watch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: -4px 0 14px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.watch-label { cursor: help; }
+.watch-logo {
+  height: 18px;
+  width: auto;
+  max-width: 72px;
+}
+/* Text stand-in for a network with no logo (TSN). */
+.watch-badge {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--row-alt);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: help;
+}
+.watch-none { font-style: italic; }
+/* Broadcasts that are only listed for other regions — dimmed so they don't
+   read as something you can watch here. */
+.game-watch.is-elsewhere .watch-logo,
+.game-watch.is-elsewhere .watch-badge { opacity: 0.7; }
+
 /* Pool-team icons beside a player's name — one per team that owns them. */
 .owner-icons {
   margin-left: 8px;
