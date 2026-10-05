@@ -118,6 +118,11 @@ The "Standings Over Time" line chart on the Standings page reads from
 `data/standings-history.json` — a growing log of daily snapshots, one
 entry per day per season, keyed the same way as `TEAMS_BY_SEASON`.
 
+To compare just some teams, use the legend: click a team to show only
+its line, then click more teams to add them (click a shown team to
+remove it). Clicking the last team left shows everyone again. A team's
+dashed projection, if any, follows it.
+
 That file is written automatically by
 `.github/workflows/snapshot-standings.yml`, which runs once a day
 (and can be triggered manually from the Actions tab — "Snapshot

@@ -366,6 +366,12 @@ async function renderChart(season) {
       Object.assign(existing, desired);
       return existing;
     });
+    // A projection line created by this render (the range just switched to
+    // Projected) starts out visible — make it follow its team instead, so a
+    // comparison in progress (see the legend's onClick) isn't undone.
+    chart.data.datasets.forEach((ds, i) => {
+      if (ds.projectionFor !== undefined) chart.setDatasetVisibility(i, chart.isDatasetVisible(ds.projectionFor));
+    });
     chart.options.plugins.tooltip.callbacks.title = (items) =>
       items.length ? formatDayOffset(baseTime, items[0].parsed.x) : "";
     chart.options.plugins.legend.labels.color = chromeColors.text;
@@ -408,25 +414,31 @@ async function renderChart(season) {
             sort: (a, b) => a.datasetIndex - b.datasetIndex,
           },
           // Default Chart.js behavior just toggles one line at a time.
-          // This instead isolates: click a team to hide every other
-          // line (and that team's own dashed projection, if any), click
-          // it again (or click the last remaining solo line) to restore
-          // all of them.
+          // This is built for comparing teams instead: with everyone
+          // shown, a click isolates that team; after that, clicking
+          // another team adds it, clicking a shown team removes it, and
+          // removing the last one (clicking the only team shown) brings
+          // everyone back. A team's dashed projection, if any, follows it.
+          // No modifier keys, so it works the same by tap on a phone.
           onClick: (evt, legendItem, legend) => {
             const target = legend.chart;
-            const index = legendItem.datasetIndex;
             const groupOf = (i) => {
               const ds = target.data.datasets[i];
               return ds.projectionFor !== undefined ? ds.projectionFor : i;
             };
-            const clickedGroup = groupOf(index);
-            const onlyThisGroupVisible = target.data.datasets.every((_, i) =>
-              (groupOf(i) === clickedGroup) === target.isDatasetVisible(i)
-            );
+            // A group's id is its real dataset's index, so that's the one
+            // to ask about visibility.
+            const groups = [...new Set(target.data.datasets.map((_, i) => groupOf(i)))];
+            const shown = new Set(groups.filter((g) => target.isDatasetVisible(g)));
+            const clicked = groupOf(legendItem.datasetIndex);
 
-            target.data.datasets.forEach((_, i) => {
-              target.setDatasetVisibility(i, onlyThisGroupVisible || groupOf(i) === clickedGroup);
-            });
+            let next;
+            if (shown.size === groups.length) next = new Set([clicked]); // everyone shown -> isolate
+            else if (!shown.has(clicked)) next = new Set([...shown, clicked]); // add to the comparison
+            else if (shown.size === 1) next = new Set(groups); // the last one -> everyone
+            else next = new Set([...shown].filter((g) => g !== clicked)); // remove from the comparison
+
+            target.data.datasets.forEach((_, i) => target.setDatasetVisibility(i, next.has(groupOf(i))));
             target.update();
           },
         },
