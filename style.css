@@ -840,3 +840,105 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
   .score-flash.goal-light > td:first-child, .score-flash.assist-light > td:first-child { animation: none; }
   .rank-value.medal-shine::after { display: none; }
 }
+
+/* Games page: one card per game — a scoreboard on top, the pool's players
+   in that game underneath. Sizes use clamp() so the scoreboard shrinks on
+   a phone instead of overflowing (the rest of the site has no media
+   queries either). */
+.games-day {
+  font-size: 1rem;
+  margin: 28px 0 10px;
+}
+.games-day:first-child { margin-top: 0; }
+.games-day span {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.game-card {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.game-scoreboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.game-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-weight: 700;
+}
+.game-team.is-loser { color: var(--muted); }
+.game-team-logo {
+  width: clamp(36px, 11vw, 48px);
+  height: clamp(36px, 11vw, 48px);
+  object-fit: contain;
+}
+
+.game-center { text-align: center; }
+.game-status {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.game-status.is-live {
+  color: var(--accent);
+  font-weight: 600;
+}
+.game-status.is-live::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  animation: loading-pulse 1.4s ease-in-out infinite;
+}
+.game-score {
+  font-size: clamp(1.5rem, 7vw, 2rem);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.game-score-sep {
+  margin: 0 4px;
+  color: var(--muted);
+}
+
+/* Pool-team icons beside a player's name — one per team that owns them. */
+.owner-icons {
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.owner-icon {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+.owner-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--row-alt);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}

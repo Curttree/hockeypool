@@ -377,6 +377,17 @@ async function fetchInjuries() {
   }
 }
 
+// NHL team logo URL from the NHL's own asset CDN. It ships both "_dark"
+// (drawn for dark backgrounds) and "_light" (for light backgrounds)
+// variants of every team's mark — picking the one matching the current
+// theme keeps thin/white-heavy logos from washing out. Callers bake this
+// into the DOM at render time, so they re-render on the "themechange"
+// event (see initTheme below) to pick up the other set.
+function nhlLogoUrl(abbrev) {
+  const variant = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  return `https://assets.nhle.com/logos/nhl/svg/${abbrev}_${variant}.svg`;
+}
+
 // Tap-to-show tooltips. Touch devices have no hover, so the native
 // `title` tooltips on these icons/badges never appear on mobile. Tapping
 // one shows its title text in a small popover instead; tapping anywhere

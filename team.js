@@ -182,17 +182,12 @@ async function loadAndRender(team, isInitialLoad) {
   }
 }
 
-// NHL team logo from the NHL's own asset CDN. It ships both "_dark"
-// (drawn for dark backgrounds) and "_light" (for light backgrounds)
-// variants of every team's mark — picking the one matching the current
-// theme keeps thin/white-heavy logos from washing out. teamAbbrevs lists
-// every team a player suited up for that season, e.g. "TOR,VGK" — the
-// last one is their most recent. A logo that fails to load just removes
-// itself, leaving the abbreviation.
+// teamAbbrevs lists every team a player suited up for that season, e.g.
+// "TOR,VGK" — the last one is their most recent. A logo that fails to
+// load just removes itself, leaving the abbreviation.
 function nhlTeamLogo(teamAbbrevs) {
   const abbrev = teamAbbrevs.split(",").pop().trim();
-  const variant = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-  return `<img class="nhl-logo" src="https://assets.nhle.com/logos/nhl/svg/${abbrev}_${variant}.svg" alt="" width="26" height="26" onerror="this.remove()">`;
+  return `<img class="nhl-logo" src="${nhlLogoUrl(abbrev)}" alt="" width="26" height="26" onerror="this.remove()">`;
 }
 
 function renderTeam(rows, totalCost) {

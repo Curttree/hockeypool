@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tremblay Hockey Pool - Team</title>
+<title>Tremblay Hockey Pool - Games</title>
 <script>
   try {
     if (localStorage.getItem("nhl-points-theme") === "light") document.documentElement.dataset.theme = "light";
   } catch (e) {}
 </script>
-<meta name="description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
+<meta name="description" content="Today's and yesterday's NHL games with live scores and points for the Tremblay Hockey Pool's players.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="favicon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Tremblay Hockey Pool">
-<meta property="og:title" content="Tremblay Hockey Pool - Team">
-<meta property="og:description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
+<meta property="og:title" content="Tremblay Hockey Pool - Games">
+<meta property="og:description" content="Today's and yesterday's NHL games with live scores and points for the Tremblay Hockey Pool's players.">
 <meta property="og:image" content="https://curttree.github.io/hockeypool/og-image.png">
-<meta property="og:url" content="https://curttree.github.io/hockeypool/team.html">
+<meta property="og:url" content="https://curttree.github.io/hockeypool/games.html">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Tremblay Hockey Pool - Team">
-<meta name="twitter:description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
+<meta name="twitter:title" content="Tremblay Hockey Pool - Games">
+<meta name="twitter:description" content="Today's and yesterday's NHL games with live scores and points for the Tremblay Hockey Pool's players.">
 <meta name="twitter:image" content="https://curttree.github.io/hockeypool/og-image.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -42,36 +42,17 @@
   </nav>
 
   <header>
-    <div>
-      <a href="./" id="back-link" class="back-link">&larr; Back to Standings</a>
-      <h1 id="team-title">Team</h1>
-    </div>
-    <span id="season-label" class="season-label"></span>
+    <h1>Games</h1>
+    <span class="season-label">Today &amp; yesterday</span>
   </header>
 
   <main>
-    <p id="status" class="loading-pulse">Loading…</p>
-    <div class="table-scroll">
-      <table id="team-table" hidden>
-        <thead>
-          <tr>
-            <th>Skaters</th>
-            <th>Team</th>
-            <th class="num">Score</th>
-            <th class="num" id="last-night-header">Last Night</th>
-            <th class="num">G</th>
-            <th class="num">A</th>
-            <th class="num">Cost</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot></tfoot>
-      </table>
-    </div>
+    <p id="status" class="loading-pulse">Loading games…</p>
+    <div id="games"></div>
   </main>
 
   <script src="common.js"></script>
   <script src="teams.js"></script>
-  <script src="team.js"></script>
+  <script src="games.js"></script>
 </body>
 </html>

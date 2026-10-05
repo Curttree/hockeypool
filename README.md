@@ -12,6 +12,7 @@ browsing/filtering NHL skater stats when drafting.
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, plus a "Standings Over Time" line chart |
 | `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season |
+| `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
 Shared logic lives in `common.js` (NHL data fetching + caching) and
@@ -147,15 +148,23 @@ always just show their full history.
 ## Architecture notes
 
 - **Backend proxy**: `app.py` (local dev) and `worker.js` (deployed to
-  Cloudflare Workers) both proxy `api.nhle.com`, which sends no CORS
-  headers so the browser can't call it directly. Both cache responses
-  for 5 minutes.
+  Cloudflare Workers) both proxy the NHL's APIs, which send no CORS
+  headers so the browser can't call them directly. Season stats
+  (`/api/players`, from `api.nhle.com`) are cached for 5 minutes; live
+  game data for the Games page (`/api/scores?date=YYYY-MM-DD` and
+  `/api/boxscore?id=<gameId>`, from `api-web.nhle.com`) is cached for
+  only 30 seconds. `worker.js` is deployed by hand, so after changing it
+  paste the new version into the Cloudflare dashboard again — the site
+  on GitHub Pages won't see new routes until you do.
 - **Client-side caching**: `common.js` caches the full-season roster
   and injury data in `sessionStorage` for 5 minutes, shared across all
   pages in the same tab session.
 - **Live polling**: Standings and team pages auto-refresh every 60
   seconds while the tab is visible — cheap, since the actual network
-  fetch only happens when the 5-minute cache above has expired.
+  fetch only happens when the 5-minute cache above has expired. The Games
+  page polls on the same schedule; each poll refetches the two days'
+  scoreboards and the box scores of games still in progress, while a
+  finished game's box score is only fetched once per page load.
 - **Daily snapshots**: see "Standings history & chart" above —
   a scheduled GitHub Action, not anything running on Cloudflare or
   GitHub Pages itself (neither can run code on a schedule).

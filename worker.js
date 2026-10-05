@@ -39,6 +39,7 @@ const PLAYERS_CACHE_TTL = 3600; // 1 hour — completed seasons
 const CURRENT_PLAYERS_CACHE_TTL = 300; // 5 minutes — the season being played
 const SEASON_CACHE_TTL = 21600; // 6 hours — the "current season" boundary only flips a couple of times a year
 const LIVE_CACHE_TTL = 60; // seconds — /api/live, i.e. in-progress games
+const GAMES_CACHE_TTL = 30; // seconds — /api/scores and /api/boxscore, the Games page's live feeds
 
 // Game states (api-web.nhle.com) for games that have started — only these
 // have player stats worth fetching.
@@ -223,6 +224,22 @@ async function handleLive() {
   }, 200, LIVE_CACHE_TTL);
 }
 
+// The Games page's feeds, passed through as-is: a date's scoreboard and one
+// game's box score. The date/id are interpolated into the NHL URL path, so
+// they're strictly validated rather than trusted. A bad or unknown one
+// surfaces as the same 502 as any other failed NHL request (see fetch below).
+async function handleScores(url) {
+  const date = url.searchParams.get("date") || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return jsonResponse({ error: "date must be YYYY-MM-DD" }, 400);
+  return jsonResponse(await fetchWebJson(`/score/${date}`, GAMES_CACHE_TTL), 200, GAMES_CACHE_TTL);
+}
+
+async function handleBoxscore(url) {
+  const id = url.searchParams.get("id") || "";
+  if (!/^\d{1,12}$/.test(id)) return jsonResponse({ error: "id must be a numeric game id" }, 400);
+  return jsonResponse(await fetchWebJson(`/gamecenter/${id}/boxscore`, GAMES_CACHE_TTL), 200, GAMES_CACHE_TTL);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -231,7 +248,7 @@ export default {
       return new Response(null, { headers: CORS_HEADERS });
     }
 
-    const isCacheableRoute = ["/api/players", "/api/season", "/api/live"].includes(url.pathname);
+    const isCacheableRoute = ["/api/players", "/api/season", "/api/live", "/api/scores", "/api/boxscore"].includes(url.pathname);
 
     // Cloudflare's edge cache: keyed on the full request (method + URL),
     // so each distinct combination of query params is cached separately.
@@ -250,6 +267,10 @@ export default {
         response = jsonResponse({ season: lastCompletedSeasonId() }, 200, SEASON_CACHE_TTL);
       } else if (url.pathname === "/api/live") {
         response = await handleLive();
+      } else if (url.pathname === "/api/scores") {
+        response = await handleScores(url);
+      } else if (url.pathname === "/api/boxscore") {
+        response = await handleBoxscore(url);
       } else {
         response = jsonResponse({ error: "Not found" }, 404);
       }
