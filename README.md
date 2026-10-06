@@ -180,6 +180,19 @@ always just show their full history.
   date and rolls over at 6am Eastern, so late games finishing after
   midnight still count toward that evening. It needs `/api/live`, so it
   only shows when deployed (the local `app.py` doesn't have that route).
+- **"Last night" recap** (Standings page, `recap.js`): each team's points
+  from the most recent night, plus anyone who moved in the standings. It's
+  built from the two newest daily snapshots when they cover last night.
+  But the snapshot Action usually starts hours late (mid-morning Eastern,
+  whatever time it's scheduled for) and can skip a night altogether — so
+  when the snapshots don't reach last night, or span more than one night,
+  it's built from the live data instead: the standings now with the later
+  nights taken back out (using the Worker's per-night `byDate` points and
+  the same scoring as the table). That's available from 6am Eastern, when
+  "last night" becomes the night that just ended. With no live data (the
+  local `app.py`) it falls back to the snapshots, headed "Since <date>"
+  rather than "Last night" if they span more than one night. Closing it is
+  remembered per night.
 - **Where to watch** (Games page): each game's Canadian TV listings come
   from the NHL's own score feed (`tvBroadcasts`), so there's no extra
   request or Worker change. `games.js`'s `WATCH_NETWORKS` /

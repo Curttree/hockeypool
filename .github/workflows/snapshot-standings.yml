@@ -2,16 +2,14 @@ name: Snapshot Standings
 
 on:
   schedule:
-    # GitHub starts scheduled runs late under load, worst at the top of the
-    # hour — a "0 8 * * *" schedule was starting 5-8 hours late, so the
-    # morning recap (see recap.js) didn't appear until mid-morning. So: run
-    # early and off the hour, with a backup later in the same UTC day. Both
-    # snapshot the same date (see snapshot-standings.mjs) and a re-run just
-    # overwrites that day's entry, so the backup is harmless when the first
-    # run was on time — and re-captures anything still settling if it was
-    # early. 06:23 UTC is 2:23am Eastern, after the last West Coast games.
-    - cron: "23 6 * * *"
-    - cron: "47 9 * * *"
+    # GitHub starts scheduled runs late — in practice mid-morning Eastern
+    # (13-15 UTC) whatever time is set here; moving it from 08:00 to 06:23
+    # UTC, and adding a second backup entry, changed nothing. So nothing
+    # depends on this being on time: until the snapshot lands, the Standings
+    # page's "last night" recap is built from live data (see recap.js).
+    # Off the top of the hour, which GitHub says is its busiest. Note that
+    # editing this file while a late run is still pending can drop that run.
+    - cron: "23 8 * * *"
   workflow_dispatch: {}
 
 concurrency:

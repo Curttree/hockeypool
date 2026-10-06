@@ -22,13 +22,6 @@ let lastDays = null;
 // External (NHL) strings end up in innerHTML below.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-// Noon UTC so the day arithmetic can't be thrown off by a DST boundary.
-function previousDate(dateStr) {
-  const d = new Date(`${dateStr}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
 function formatDay(dateStr) {
   return new Date(`${dateStr}T12:00:00Z`).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
 }

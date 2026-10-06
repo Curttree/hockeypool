@@ -403,6 +403,14 @@ function nhlLogoUrl(abbrev) {
   return `https://assets.nhle.com/logos/nhl/svg/${abbrev}_${variant}.svg`;
 }
 
+// The day before a "YYYY-MM-DD" date. Done at noon UTC so the arithmetic
+// can't be thrown off by a DST boundary.
+function previousDate(dateStr) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 // Same idea for a logo the NHL supplies as a { light, dark } pair of URLs —
 // e.g. a TV network's `logoUrls` on a game's tvBroadcasts entry.
 function themedLogoUrl(logoUrls) {

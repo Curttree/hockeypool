@@ -1,7 +1,10 @@
 // "Last night" recap banner above the standings: each team's points from
 // the most recent night of games, plus anyone who moved up or down the
-// standings — from the two most recent daily snapshots in
-// data/standings-history.json (written overnight by the snapshot Action).
+// standings. Normally built from the two most recent daily snapshots in
+// data/standings-history.json (written overnight by the snapshot Action) —
+// but that Action can start hours late or skip a night, so when the
+// snapshots don't cover last night (or span more than one night), it's
+// built from the live data instead (see buildLiveRecap).
 //
 // Stays up until closed, and closing it is remembered per snapshot date
 // (per browser), so each new night's recap shows up once more. Hidden when
@@ -44,21 +47,23 @@ function ordinal(n) {
 
 // Snapshots are tagged with the date the games were played, so the latest
 // one is usually yesterday — "Last night". If it's older (e.g. a few days
-// off), name the date instead.
-function recapHeading(date) {
+// off), name the date instead. A recap that spans more than one night (a
+// daily snapshot was missed) says where it starts rather than claim to be
+// "last night".
+function recapHeading(recap) {
+  const label = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  if (recap.since) return `Since ${label(recap.since)}`;
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  if (date === yesterday.toLocaleDateString("en-CA")) return "Last night";
-  const label = new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  return `On ${label}`;
+  if (recap.date === yesterday.toLocaleDateString("en-CA")) return "Last night";
+  return `On ${label(recap.date)}`;
 }
 
-// { date, items: [{ team, gain, from, to }] } from the two most recent
-// snapshots, biggest gain first — or null if there aren't two yet, or
-// nobody scored between them.
-function buildRecap(entries) {
-  if (entries.length < 2) return null;
-  const [previous, latest] = entries.slice(-2);
+// { date, items: [{ team, gain, from, to }] } for the change from one
+// standings snapshot ({ date, standings: [{ team, score }] }) to the next,
+// biggest gain first — or null if nobody scored. `since` is set when the two
+// aren't consecutive days, so the recap spans more than one night.
+function recapBetween(previous, latest) {
   const prevScores = new Map(previous.standings.map((s) => [s.team, s.score]));
   const prevRanks = snapshotRanks(previous);
   const latestRanks = snapshotRanks(latest);
@@ -72,7 +77,56 @@ function buildRecap(entries) {
     }))
     .sort((a, b) => b.gain - a.gain || a.to - b.to);
   if (!items.some((item) => item.gain > 0)) return null;
-  return { date: latest.date, items };
+  const recap = { date: latest.date, items };
+  if (previous.date !== previousDate(latest.date)) recap.since = previous.date;
+  return recap;
+}
+
+// The recap from the two most recent snapshots — or null if there aren't
+// two yet, or nobody scored between them.
+function buildRecap(entries) {
+  if (entries.length < 2) return null;
+  const [previous, latest] = entries.slice(-2);
+  return recapBetween(previous, latest);
+}
+
+// The live roster as it stood at the end of `throughDate`: every night after
+// it taken back out. (Live players carry their points split by game date —
+// see /api/live in worker.js.)
+function rosterThrough(roster, throughDate) {
+  return roster.map((p) => {
+    if (!p.byDate) return p;
+    let goals = 0, assists = 0, points = 0;
+    Object.entries(p.byDate).forEach(([date, day]) => {
+      if (date > throughDate) {
+        goals += day.goals;
+        assists += day.assists;
+        points += day.points;
+      }
+    });
+    return { ...p, goals: p.goals - goals, assists: p.assists - assists, points: p.points - points };
+  });
+}
+
+// The recap for one night built from the live data, with the same scoring
+// the standings table uses: standings at the end of that night versus the
+// night before. Null if the live data doesn't have that night (it only
+// covers the NHL's current and previous game dates, and only games that
+// have started) or nobody scored. Shares the page's roster fetch, so it
+// costs no extra requests.
+async function buildLiveRecap(season, night) {
+  const [roster, previousRoster] = await Promise.all([
+    fetchAllPlayersForSeason(season),
+    fetchAllPlayersForSeason(previousSeasonId(season)).catch(() => []),
+  ]);
+  if (!roster.some((p) => p.byDate && p.byDate[night])) return null;
+
+  const teams = getTeamsForSeason(season);
+  const standingsAt = (date) => ({
+    date,
+    standings: computeStandings(season, teams, rosterThrough(roster, date), previousRoster).map((t) => ({ team: t.name, score: t.score })),
+  });
+  return recapBetween(standingsAt(previousDate(night)), standingsAt(night));
 }
 
 function renderRecap(season, recap, { preview = false } = {}) {
@@ -94,7 +148,7 @@ function renderRecap(season, recap, { preview = false } = {}) {
 
   recapEl.innerHTML = `
     <div class="recap-head">
-      <span class="recap-title">🏒 ${recapHeading(recap.date)}${preview ? " (preview)" : ""}</span>
+      <span class="recap-title">🏒 ${recapHeading(recap)}${preview ? " (preview)" : ""}</span>
       <button type="button" class="recap-close" aria-label="Close recap">×</button>
     </div>
     <ul class="recap-list">${chips}</ul>
@@ -131,7 +185,19 @@ async function showRecap(season) {
   try {
     const history = await fetch(RECAP_HISTORY_URL).then((r) => r.json());
     const entries = (history[season] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-    const recap = buildRecap(entries);
+    let recap = buildRecap(entries);
+
+    // The snapshot Action can start hours late, or skip a night. If the
+    // snapshots don't reach last night yet — or span more than one night
+    // because one was missed — use the live data for last night instead,
+    // when it has it. (Otherwise the snapshot recap stands, as before: e.g.
+    // locally, where there's no live data.)
+    const lastNight = previousDate(currentNightDate());
+    if (!recap || recap.date < lastNight || recap.since) {
+      const live = await buildLiveRecap(season, lastNight).catch(() => null);
+      if (live) recap = live;
+    }
+
     if (!recap || recapDismissedDate() === recap.date) return;
     if (seasonSelect.value !== season) return; // season changed while loading
     renderRecap(season, recap);
