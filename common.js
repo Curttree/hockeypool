@@ -411,6 +411,41 @@ function previousDate(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
+// A "night" is the NHL's US Eastern game date, rolling over at 6am Eastern
+// rather than midnight: a late game running past midnight still belongs to
+// that evening, and by morning it's already the next (not yet started)
+// night. The NHL's own "current date" isn't used — it was still reporting
+// the previous night at 10am. Shared by the Standings page's "Tonight"
+// column and recap, and the team page's "Last Night" column.
+const NIGHT_ROLLOVER_MS = 6 * 60 * 60 * 1000;
+
+function currentNightDate() {
+  return easternDate(new Date(Date.now() - NIGHT_ROLLOVER_MS));
+}
+
+// The night that just ended: the one before the current night.
+function lastNightDate() {
+  return previousDate(currentNightDate());
+}
+
+// The live roster as it stood at the end of `throughDate`: every night after
+// it taken back out. (Live players carry their points split by game date —
+// see /api/live in worker.js.)
+function rosterThrough(roster, throughDate) {
+  return roster.map((p) => {
+    if (!p.byDate) return p;
+    let goals = 0, assists = 0, points = 0;
+    Object.entries(p.byDate).forEach(([date, day]) => {
+      if (date > throughDate) {
+        goals += day.goals;
+        assists += day.assists;
+        points += day.points;
+      }
+    });
+    return { ...p, goals: p.goals - goals, assists: p.assists - assists, points: p.points - points };
+  });
+}
+
 // Same idea for a logo the NHL supplies as a { light, dark } pair of URLs —
 // e.g. a TV network's `logoUrls` on a game's tvBroadcasts entry.
 function themedLogoUrl(logoUrls) {

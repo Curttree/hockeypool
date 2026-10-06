@@ -192,7 +192,10 @@ always just show their full history.
   "last night" becomes the night that just ended. With no live data (the
   local `app.py`) it falls back to the snapshots, headed "Since <date>"
   rather than "Last night" if they span more than one night. Closing it is
-  remembered per night.
+  remembered per night. The team page's "Last Night" column (`team.js`)
+  makes the same choice with the same test, and scores the live version
+  with the same functions, so a team's column total always equals its
+  number in the recap; its header tooltip says which source it used.
 - **Where to watch** (Games page): each game's Canadian TV listings come
   from the NHL's own score feed (`tvBroadcasts`), so there's no extra
   request or Worker change. `games.js`'s `WATCH_NETWORKS` /

@@ -90,24 +90,6 @@ function buildRecap(entries) {
   return recapBetween(previous, latest);
 }
 
-// The live roster as it stood at the end of `throughDate`: every night after
-// it taken back out. (Live players carry their points split by game date —
-// see /api/live in worker.js.)
-function rosterThrough(roster, throughDate) {
-  return roster.map((p) => {
-    if (!p.byDate) return p;
-    let goals = 0, assists = 0, points = 0;
-    Object.entries(p.byDate).forEach(([date, day]) => {
-      if (date > throughDate) {
-        goals += day.goals;
-        assists += day.assists;
-        points += day.points;
-      }
-    });
-    return { ...p, goals: p.goals - goals, assists: p.assists - assists, points: p.points - points };
-  });
-}
-
 // The recap for one night built from the live data, with the same scoring
 // the standings table uses: standings at the end of that night versus the
 // night before. Null if the live data doesn't have that night (it only
@@ -192,7 +174,7 @@ async function showRecap(season) {
     // because one was missed — use the live data for last night instead,
     // when it has it. (Otherwise the snapshot recap stands, as before: e.g.
     // locally, where there's no live data.)
-    const lastNight = previousDate(currentNightDate());
+    const lastNight = lastNightDate();
     if (!recap || recap.date < lastNight || recap.since) {
       const live = await buildLiveRecap(season, lastNight).catch(() => null);
       if (live) recap = live;

@@ -91,15 +91,8 @@ function computeStandings(season, teams, roster, previousRoster, tonightDate = n
 // reports that same night and this column steps aside until the next
 // night's first game starts.
 
-// A night rolls over at 6am Eastern rather than midnight, so a late game
-// running past midnight still belongs to that evening — and by morning
-// it's already the next (not yet started) night. The NHL's own "current
-// date" isn't used: it was still reporting the previous night at 10am.
-const NIGHT_ROLLOVER_MS = 6 * 60 * 60 * 1000;
-
-function currentNightDate() {
-  return easternDate(new Date(Date.now() - NIGHT_ROLLOVER_MS));
-}
+// (What counts as "the current night" — currentNightDate, in common.js — is
+// shared with the recap and the team page's "Last Night" column.)
 
 // The date of the most recent daily snapshot (what the recap banner is
 // built from), fetched at most every 10 minutes — the file only changes

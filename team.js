@@ -29,10 +29,42 @@ function lastNightPoints(snapshots, playerId, tradeInfo) {
   return Math.max(0, latestPoints - base);
 }
 
-function updateLastNightHeader(snapshots) {
+// Whether the snapshots have caught up with last night: the newest is for
+// last night (or later) and the two newest are consecutive days. If not,
+// "Last Night" from them would be a night behind, or span several nights
+// because one was missed. (The same test the Standings recap uses.)
+function snapshotsCoverLastNight(snapshots, night) {
+  if (!snapshots || snapshots.length < 2) return false;
+  const [previous, latest] = snapshots.slice(-2);
+  return latest.date >= night && previous.date === previousDate(latest.date);
+}
+
+// A player's points for last night from the live data, when the snapshots
+// haven't caught up: what they're credited at the end of that night minus
+// at the end of the night before — the same scoring the standings use, so a
+// trade is handled the same way (nothing counts from before the player
+// joined this team) and the column's total matches the recap. `indexes`
+// are roster indexes as of the end of each of those nights (rosterThrough).
+// Null for a player traded away: their credit is frozen.
+function liveLastNightPoints(entry, tradeInfo, indexes) {
+  if (tradeInfo.tradedOut) return null;
+  const creditedAt = (index) => {
+    const { player, ambiguous } = resolvePlayer(index, playerName(entry), playerTeamHint(entry), playerPositionHint(entry), playerIdHint(entry));
+    const credited = ambiguous ? null : creditedStats(tradeInfo, player);
+    return credited ? Math.max(0, credited.points) : 0;
+  };
+  return Math.max(0, creditedAt(indexes.through) - creditedAt(indexes.before));
+}
+
+// `liveNight` is the night the live data is standing in for, if it is.
+function updateLastNightHeader(snapshots, liveNight) {
   // Missing only if a browser pairs a cached older team.html with this
   // script right after a deploy — not worth failing the page over.
   if (!lastNightHeaderEl) return;
+  if (liveNight) {
+    lastNightHeaderEl.title = `Points from last night's games (${liveNight}), from live data — the daily snapshot hasn't caught up yet`;
+    return;
+  }
   if (!snapshots || snapshots.length < 2) {
     lastNightHeaderEl.title = "Points from the most recent night of games — available after the first two daily snapshots";
     return;
@@ -128,7 +160,19 @@ async function loadAndRender(team, isInitialLoad) {
       fetch(PLAYER_POINTS_URL).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
     const pointsSnapshots = pointsHistory[currentSeason];
-    updateLastNightHeader(pointsSnapshots);
+
+    // The snapshot Action can start hours late or skip a night (see the
+    // note in .github/workflows/snapshot-standings.yml). When the snapshots
+    // don't reach last night, work "Last Night" out from the live data
+    // instead, if it has that night; otherwise the snapshots, as before.
+    const night = lastNightDate();
+    const useLive = !snapshotsCoverLastNight(pointsSnapshots, night)
+      && roster.some((p) => p.byDate && p.byDate[night]);
+    const nightIndexes = useLive
+      ? { through: buildRosterIndex(rosterThrough(roster, night)), before: buildRosterIndex(rosterThrough(roster, previousDate(night))) }
+      : null;
+    updateLastNightHeader(pointsSnapshots, useLive ? night : null);
+
     const rosterIndex = buildRosterIndex(roster);
     const previousRosterIndex = buildRosterIndex(previousRoster);
 
@@ -168,11 +212,13 @@ async function loadAndRender(team, isInitialLoad) {
         previousTeam: previousPlayer ? previousPlayer.teamAbbrevs : null,
         lastNight: ambiguous
           ? null
-          : lastNightPoints(
-            pointsSnapshots,
-            (player && player.playerId) || (previousPlayer && previousPlayer.playerId) || playerIdHint(entry),
-            tradeInfo
-          ),
+          : nightIndexes
+            ? liveLastNightPoints(entry, tradeInfo, nightIndexes)
+            : lastNightPoints(
+              pointsSnapshots,
+              (player && player.playerId) || (previousPlayer && previousPlayer.playerId) || playerIdHint(entry),
+              tradeInfo
+            ),
         injured: manuallyFlagged || Boolean(liveInjury),
         injuryLabel: liveInjury ? (liveInjury.comment || liveInjury.status) : "Injured",
       };
