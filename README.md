@@ -208,6 +208,15 @@ always just show their full history.
   page polls on the same schedule; each poll refetches the two days'
   scoreboards and the box scores of games still in progress, while a
   finished game's box score is only fetched once per page load.
+- **Leader's crown and rank moods** (Standings page, `standings.js`): the
+  leader's logo wears a 👑, and a logo hops (✨) after its team moves up or
+  droops (💧) after it moves down — compared against the previous poll, or
+  on a fresh load against the ranks this browser last saw (kept in
+  `localStorage`; a first visit shows nothing). When the lead itself
+  changes hands the crown lifts off the old leader, arcs across the table
+  and lands on the new one with a bounce and a little confetti. All off for
+  reduced motion. `?preview-moods` and `?preview-crown` replay the moods and
+  the hand-off on demand, without waiting for a real change.
 - **"Tonight" column**: each team's points from the current night's
   games only (the Worker's `/api/live` splits every player's live points
   by game date, so one night's points can be told from another's). It

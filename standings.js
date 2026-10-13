@@ -330,6 +330,11 @@ function saveCachedRanks(season, ranks) {
 // between polls. Reset alongside previousScores.
 let previousRanks = null;
 
+// What a fresh load compares against for the crown hand-off (see
+// prepareCrownHandoff): this browser's last-seen ranks, handed from
+// loadAndRender to the render it triggers. Null on a first visit.
+let pendingRankBaseline = null;
+
 // Team name -> { mood: "happy" | "sad", from, to } for every team whose
 // rank differs between `baseline` and `current` (teams missing from
 // either are skipped).
@@ -380,6 +385,137 @@ function previewMoods(standings) {
       : { mood: "sad", from: team.rank, to: team.rank + 1 });
   });
   return moods;
+}
+
+// ---- Crown hand-off -------------------------------------------------
+// When the lead changes hands the crown doesn't just vanish from one logo
+// and appear on another: it lifts off the old leader, arcs across the
+// table and lands on the new one with a bounce and a little confetti.
+// Same baselines as the rank moods (the previous poll's ranks, or on a
+// fresh load this browser's last-seen ranks) — a new leader's logo hops
+// and the old one droops at the same time (see playMoods).
+
+const CROWN_FLIGHT_MS = 1000;
+const CONFETTI_COLORS = ["#ffd24a", "#ff6fae", "#4ea1ff", "#5ee6a0", "#ffffff", "#ff8a3d"];
+
+// The rank each team had in `baseline`, with the leader and runner-up
+// swapped — what ?preview-crown pretends the last visit looked like.
+function swapLeaderRanks(standings) {
+  const ranks = new Map(standings.map((t) => [t.name, t.rank]));
+  if (standings.length > 1) {
+    ranks.set(standings[0].name, standings[1].rank);
+    ranks.set(standings[1].name, 1);
+  }
+  return ranks;
+}
+
+// Called right after the table is rebuilt. If the crown changed hands
+// since `baseline` it puts things in their "before" state straight away
+// (the old leader's logo holding a crown, the new leader's hidden — so the
+// table never flashes the crown in its new place) and returns a function
+// that plays the flight; otherwise null. Does nothing for reduced motion,
+// where the crown just shows up in its new place.
+function prepareCrownHandoff(baseline, current) {
+  if (!baseline || prefersReducedMotion()) return null;
+
+  const rows = [...tbody.querySelectorAll("tr[data-team]")];
+  const newCrowns = rows
+    .filter((tr) => tr.querySelector(".leader-crown") && baseline.get(tr.dataset.team) !== 1)
+    .map((tr) => tr.querySelector(".leader-crown"));
+  const oldLeaderRow = rows.find((tr) => baseline.get(tr.dataset.team) === 1 && current.get(tr.dataset.team) !== 1);
+  const oldWrap = oldLeaderRow && oldLeaderRow.querySelector(".team-logo-wrap");
+  if (!newCrowns.length || !oldWrap) return null;
+
+  // The crown the old leader is still wearing, until it takes off.
+  const held = document.createElement("span");
+  held.className = "leader-crown";
+  held.setAttribute("aria-hidden", "true");
+  held.textContent = "👑";
+  oldWrap.appendChild(held);
+  newCrowns.forEach((crown) => { crown.style.visibility = "hidden"; });
+
+  const centerOf = (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2 + window.scrollX, y: r.top + r.height / 2 + window.scrollY };
+  };
+
+  return function playCrownHandoff() {
+    // A render landed first (a poll, the tab regaining focus) and replaced
+    // these rows: the fresh table already shows the crown where it belongs.
+    if (!document.contains(held)) {
+      newCrowns.forEach((crown) => { crown.style.visibility = ""; });
+      return;
+    }
+    const from = centerOf(held);
+    held.remove();
+
+    newCrowns.forEach((crown) => {
+      if (!document.contains(crown)) return;
+      const to = centerOf(crown);
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+
+      const flier = document.createElement("span");
+      flier.className = "crown-flier";
+      flier.setAttribute("aria-hidden", "true");
+      flier.textContent = "👑";
+      flier.style.left = `${from.x}px`;
+      flier.style.top = `${from.y}px`;
+      document.body.appendChild(flier);
+
+      // An arc rather than a straight line: up and over, swelling at the
+      // top of it, then settling back to its resting size and tilt.
+      const at = (px, py, rot, scale) =>
+        `translate(-50%, -50%) translate(${px}px, ${py}px) rotate(${rot}deg) scale(${scale})`;
+      const lift = Math.min(70, 30 + Math.abs(dy) * 0.5);
+      const flight = flier.animate(
+        [
+          { transform: at(0, 0, -12, 1), offset: 0 },
+          { transform: at(dx * 0.1, -10, -25, 1.3), offset: 0.12 },
+          { transform: at(dx * 0.5, dy * 0.5 - lift, 12, 2), offset: 0.5 },
+          { transform: at(dx * 0.9, dy * 0.9 - 6, -8, 1.4), offset: 0.88 },
+          { transform: at(dx, dy, -12, 1), offset: 1 },
+        ],
+        { duration: CROWN_FLIGHT_MS, easing: "cubic-bezier(0.45, 0, 0.3, 1)" }
+      );
+      flight.onfinish = () => {
+        flier.remove();
+        crown.style.visibility = "";
+        crown.classList.add("crown-land");
+        setTimeout(() => crown.classList.remove("crown-land"), 600);
+        crownConfetti(to.x, to.y);
+      };
+    });
+  };
+}
+
+// A short burst of confetti thrown up from (x, y) in page coordinates.
+function crownConfetti(x, y) {
+  for (let i = 0; i < 16; i++) {
+    const bit = document.createElement("span");
+    bit.className = "confetti-bit";
+    bit.setAttribute("aria-hidden", "true");
+    bit.style.left = `${x}px`;
+    bit.style.top = `${y}px`;
+    bit.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    document.body.appendChild(bit);
+
+    // Fanned out above the crown (-160° to -20°), then pulled down.
+    const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
+    const distance = 26 + Math.random() * 44;
+    const px = Math.cos(angle) * distance;
+    const py = Math.sin(angle) * distance;
+    const spin = (Math.random() - 0.5) * 720;
+    const drift = bit.animate(
+      [
+        { transform: "translate(-50%, -50%) rotate(0deg)", opacity: 1 },
+        { transform: `translate(calc(-50% + ${px}px), calc(-50% + ${py}px)) rotate(${spin / 2}deg)`, opacity: 1, offset: 0.45 },
+        { transform: `translate(calc(-50% + ${px * 1.2}px), calc(-50% + ${py + 38}px)) rotate(${spin}deg)`, opacity: 0 },
+      ],
+      { duration: 800 + Math.random() * 300, easing: "ease-out" }
+    );
+    drift.onfinish = () => bit.remove();
+  }
 }
 
 // ?preview-fx in the URL demos the live-game effects without waiting
@@ -551,6 +687,11 @@ function renderStandings(standings, season) {
   // instead. Saved every render so a reload doesn't replay the same moods.
   const currentRanks = new Map(standings.map((t) => [t.name, t.rank]));
   if (previousRanks) playMoods(rankMoods(previousRanks, currentRanks));
+  // The crown's flight waits for the table to settle: a poll's rows slide
+  // for 400ms; a fresh load gets the same short beat the moods do.
+  const playCrown = prepareCrownHandoff(previousRanks || pendingRankBaseline, currentRanks);
+  pendingRankBaseline = null;
+  if (playCrown) setTimeout(playCrown, previousRanks ? 450 : 400);
   previousRanks = currentRanks;
   saveCachedRanks(season, currentRanks);
 
@@ -601,7 +742,13 @@ async function loadAndRender(isInitialLoad) {
     const tonightDate = previewMode ? null : await tonightDateFor(currentSeason, roster);
     const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster, tonightDate);
     // Read before rendering — renderStandings overwrites the cache.
-    const cachedRanks = isInitialLoad ? loadCachedRanks(currentSeason) : null;
+    // ?preview-crown pretends the last visit had the runner-up in front, to
+    // see the crown hand-off (and the moods that go with it) on demand.
+    const crownDemo = isInitialLoad && !previewMode && new URLSearchParams(location.search).has("preview-crown");
+    const cachedRanks = crownDemo
+      ? swapLeaderRanks(standings)
+      : isInitialLoad ? loadCachedRanks(currentSeason) : null;
+    pendingRankBaseline = previewMode ? null : cachedRanks;
     renderStandings(standings, currentSeason);
 
     if (isInitialLoad) {

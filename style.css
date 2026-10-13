@@ -902,6 +902,34 @@ tbody tr:hover { background: var(--row-hover); }
   50% { transform: translateX(-50%) translateY(-2px) rotate(-6deg); }
 }
 
+/* Crown hand-off (standings.js prepareCrownHandoff): the crown in flight
+   between logos, the new leader's crown landing with a bounce, and the
+   confetti thrown up as it does. */
+.crown-flier {
+  position: absolute;
+  z-index: 60;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+  will-change: transform;
+}
+.leader-crown.crown-land { animation: crown-land 0.55s ease-out; }
+@keyframes crown-land {
+  0% { transform: translateX(-50%) translateY(-4px) rotate(-12deg) scale(1.7); }
+  35% { transform: translateX(-50%) translateY(1px) rotate(-12deg) scale(0.85); }
+  65% { transform: translateX(-50%) translateY(-3px) rotate(-6deg) scale(1.2); }
+  100% { transform: translateX(-50%) translateY(0) rotate(-12deg) scale(1); }
+}
+.confetti-bit {
+  position: absolute;
+  z-index: 60;
+  width: 5px;
+  height: 8px;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
 /* An occasional shine sweeping across the leader's gold medal. */
 .rank-value.medal-shine {
   position: relative;
