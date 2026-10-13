@@ -142,6 +142,10 @@ chart shows a line; until then it shows a placeholder message instead.
 The chart opens on the range picker's "1 Week" option — the last 7 days
 counted back from the newest snapshot — with "1 Month" and "Season" a
 dropdown away (the default is the `selected` option in `index.html`).
+On 1 Week and 1 Month the y-axis starts near the lowest point in the
+window (so it rises as old days slide out of it, and tightens up when
+comparing a subset of teams) rather than at 0; Season and Projected stay
+anchored at 0.
 
 The range picker's fourth option, "Projected", shows the full season
 (like "Season") plus a dashed line per team: a linear trend fit

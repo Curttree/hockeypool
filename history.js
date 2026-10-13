@@ -245,6 +245,16 @@ function filterByRange(entries, range) {
   return entries.filter((e) => e.date >= cutoffStr);
 }
 
+// The 1 Week and 1 Month ranges are short windows, so starting the axis at
+// 0 would squash every line into the top of the chart — leave the bottom
+// to Chart.js there, which fits it to the lowest *shown* point in the
+// window (so it also tightens up when comparing a subset of teams, and
+// rises as old days slide out of the window). Season and Projected keep
+// the axis anchored at 0 so the season's overall growth reads honestly.
+function yAxisMin(range) {
+  return range === "week" || range === "month" ? undefined : 0;
+}
+
 async function renderChart(season) {
   const myToken = ++renderToken;
 
@@ -377,6 +387,7 @@ async function renderChart(season) {
     chart.options.scales.x.ticks.color = chromeColors.muted;
     chart.options.scales.x.ticks.callback = (value) => formatDayOffset(baseTime, value);
     chart.options.scales.x.grid.color = chromeColors.border;
+    chart.options.scales.y.min = yAxisMin(rangeSelect.value);
     chart.options.scales.y.ticks.color = chromeColors.muted;
     chart.options.scales.y.grid.color = chromeColors.border;
     chart.update();
@@ -458,7 +469,21 @@ async function renderChart(season) {
         // precision: 0 keeps auto-picked tick steps whole numbers — points
         // are always integers, so a fractional step (e.g. while every
         // score is still 0 before the season starts) just looks odd.
-        y: { min: 0, ticks: { color: chromeColors.muted, precision: 0 }, grid: { color: chromeColors.border } },
+        y: {
+          min: yAxisMin(rangeSelect.value),
+          // A little headroom under the lowest line when the bottom is
+          // auto-fitted — but scores can't be negative, so never below 0
+          // (the grace would otherwise carry a line sitting at 0 under it,
+          // and the nice-number tick rounding can reach lower still).
+          grace: "5%",
+          afterBuildTicks: (scale) => {
+            if (scale.min >= 0) return;
+            scale.ticks = scale.ticks.filter((t) => t.value >= 0);
+            scale.min = 0;
+          },
+          ticks: { color: chromeColors.muted, precision: 0 },
+          grid: { color: chromeColors.border },
+        },
       },
     },
   });
