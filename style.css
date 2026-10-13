@@ -500,7 +500,9 @@ tbody tr:hover { background: var(--row-hover); }
    horizontal padding while it's showing. The clamp is the normal 14px from
    ~700px wide up, so larger screens look the same as ever. */
 #standings-table.has-tonight th:not(.team-logo-col),
-#standings-table.has-tonight td:not(.team-logo-col):not([colspan]) {
+#standings-table.has-tonight td:not(.team-logo-col):not([colspan]),
+#team-table.has-tonight th,
+#team-table.has-tonight td:not([colspan]) {
   padding-left: clamp(6px, 2vw, 14px);
   padding-right: clamp(6px, 2vw, 14px);
 }

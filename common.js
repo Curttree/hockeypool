@@ -457,7 +457,7 @@ function themedLogoUrl(logoUrls) {
 // one shows its title text in a small popover instead; tapping anywhere
 // else (or scrolling) closes it. Works on desktop clicks too. Uses event
 // delegation since table rows are re-rendered on every refresh.
-const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge, .prev-team, #last-night-header, .watch-label, .watch-logo, .watch-badge";
+const TAP_TIP_SELECTOR = ".injury-icon, .warn, .traded-badge, .prev-team, #last-night-header, #tonight-header, .watch-label, .watch-logo, .watch-badge";
 let tapTipEl = null;
 let tapTipAnchor = null;
 

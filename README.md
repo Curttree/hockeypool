@@ -180,6 +180,11 @@ always just show their full history.
   date and rolls over at 6am Eastern, so late games finishing after
   midnight still count toward that evening. It needs `/api/live`, so it
   only shows when deployed (the local `app.py` doesn't have that route).
+  The team page has the same column per player (after Score, before "Last
+  Night") under the same rule — it appears once the night's first game has
+  started and steps aside when the player-points snapshot for that night
+  lands and "Last Night" reports it — and a team's total there always
+  equals its Tonight number on the Standings page.
 - **"Last night" recap** (Standings page, `recap.js`): each team's points
   from the most recent night, plus anyone who moved in the standings. It's
   built from the two newest daily snapshots when they cover last night.

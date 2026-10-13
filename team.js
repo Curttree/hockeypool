@@ -6,6 +6,7 @@ const table = document.getElementById("team-table");
 const tbody = table.querySelector("tbody");
 const tfoot = table.querySelector("tfoot");
 const lastNightHeaderEl = document.getElementById("last-night-header");
+const tonightHeaderEl = document.getElementById("tonight-header");
 
 // Daily per-player season point totals, written by the snapshot Action
 // (.github/scripts/snapshot-standings.mjs) — { [season]: [{ date, points:
@@ -39,14 +40,15 @@ function snapshotsCoverLastNight(snapshots, night) {
   return latest.date >= night && previous.date === previousDate(latest.date);
 }
 
-// A player's points for last night from the live data, when the snapshots
-// haven't caught up: what they're credited at the end of that night minus
-// at the end of the night before — the same scoring the standings use, so a
-// trade is handled the same way (nothing counts from before the player
-// joined this team) and the column's total matches the recap. `indexes`
-// are roster indexes as of the end of each of those nights (rosterThrough).
+// A player's points for one night from the live data: what they're
+// credited at the end of that night minus at the end of the night before —
+// the same scoring the standings use, so a trade is handled the same way
+// (nothing counts from before the player joined this team) and a column's
+// total matches the recap / Standings. `indexes` are roster indexes as of
+// the end of each of those nights (rosterThrough). Used for "Last Night"
+// when the snapshots haven't caught up, and always for "Tonight".
 // Null for a player traded away: their credit is frozen.
-function liveLastNightPoints(entry, tradeInfo, indexes) {
+function liveNightPoints(entry, tradeInfo, indexes) {
   if (tradeInfo.tradedOut) return null;
   const creditedAt = (index) => {
     const { player, ambiguous } = resolvePlayer(index, playerName(entry), playerTeamHint(entry), playerPositionHint(entry), playerIdHint(entry));
@@ -54,6 +56,19 @@ function liveLastNightPoints(entry, tradeInfo, indexes) {
     return credited ? Math.max(0, credited.points) : 0;
   };
   return Math.max(0, creditedAt(indexes.through) - creditedAt(indexes.before));
+}
+
+// The night the "Tonight" column covers, or null when it shouldn't show —
+// the same rule as the Standings page's Tonight column: none of the current
+// night's games has started yet (the live data lists a player under a night
+// from the moment their game starts, even at 0 points), or the daily
+// snapshots already cover the night, in which case "Last Night" reports it
+// and this column waits for the next night's first game.
+function tonightNight(roster, snapshots) {
+  const night = currentNightDate();
+  if (!roster.some((p) => p.byDate && p.byDate[night])) return null;
+  const newest = snapshots && snapshots.length ? snapshots[snapshots.length - 1].date : null;
+  return newest && newest >= night ? null : night;
 }
 
 // `liveNight` is the night the live data is standing in for, if it is.
@@ -173,6 +188,13 @@ async function loadAndRender(team, isInitialLoad) {
       : null;
     updateLastNightHeader(pointsSnapshots, useLive ? night : null);
 
+    // "Tonight": the current night's points so far, once its first game has
+    // started and until the snapshots take it over as "Last Night".
+    const tonight = tonightNight(roster, pointsSnapshots);
+    const tonightIndexes = tonight
+      ? { through: buildRosterIndex(rosterThrough(roster, tonight)), before: buildRosterIndex(rosterThrough(roster, previousDate(tonight))) }
+      : null;
+
     const rosterIndex = buildRosterIndex(roster);
     const previousRosterIndex = buildRosterIndex(previousRoster);
 
@@ -213,19 +235,20 @@ async function loadAndRender(team, isInitialLoad) {
         lastNight: ambiguous
           ? null
           : nightIndexes
-            ? liveLastNightPoints(entry, tradeInfo, nightIndexes)
+            ? liveNightPoints(entry, tradeInfo, nightIndexes)
             : lastNightPoints(
               pointsSnapshots,
               (player && player.playerId) || (previousPlayer && previousPlayer.playerId) || playerIdHint(entry),
               tradeInfo
             ),
+        tonight: ambiguous || !tonightIndexes ? null : liveNightPoints(entry, tradeInfo, tonightIndexes),
         injured: manuallyFlagged || Boolean(liveInjury),
         injuryLabel: liveInjury ? (liveInjury.comment || liveInjury.status) : "Injured",
       };
     });
 
     const totalCost = computeTeamCost(currentSeason, team, previousRosterIndex);
-    renderTeam(rows, totalCost);
+    renderTeam(rows, totalCost, Boolean(tonightIndexes));
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
@@ -244,10 +267,18 @@ function nhlTeamLogo(teamAbbrevs) {
   return `<img class="nhl-logo" src="${nhlLogoUrl(abbrev)}" alt="" width="26" height="26" onerror="this.remove()">`;
 }
 
-function renderTeam(rows, totalCost) {
+function renderTeam(rows, totalCost, showTonight) {
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
   let totalLastNight = null; // stays null (shown as "—") until any row has a value
+  let totalTonight = null; // same
+
+  // The column's header is in team.html, hidden until there's a night on.
+  // (Missing only if a browser pairs a cached older team.html with this
+  // script right after a deploy — then there's just no column.)
+  const hasTonight = showTonight && Boolean(tonightHeaderEl);
+  if (tonightHeaderEl) tonightHeaderEl.hidden = !hasTonight;
+  table.classList.toggle("has-tonight", hasTonight); // phone padding tweak in style.css
 
   // Before a player's first game of the season (e.g. preseason) there's
   // no current-season record to read their team from, so fall back to
@@ -264,7 +295,7 @@ function renderTeam(rows, totalCost) {
 
   const newPlayerScores = new Map();
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, noDataExpected }) => {
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }) => {
     if (credited) newPlayerScores.set(name, credited.points);
     const prevScore = previousPlayerScores ? previousPlayerScores.get(name) : undefined;
     const scoreIncreased = credited && prevScore !== undefined && credited.points > prevScore;
@@ -283,6 +314,12 @@ function renderTeam(rows, totalCost) {
     const costCell = `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
     if (lastNight != null) totalLastNight = (totalLastNight || 0) + lastNight;
     const lastNightCell = `<td class="num last-night${lastNight > 0 ? " scored" : ""}">${lastNight == null ? "—" : lastNight}</td>`;
+    if (tonight != null) totalTonight = (totalTonight || 0) + tonight;
+    // "+N" like the Standings page's Tonight column; "—" for a player whose
+    // night can't be worked out (traded away: their credit is frozen).
+    const tonightCell = hasTonight
+      ? `<td class="num tonight${tonight > 0 ? " scored" : ""}">${tonight == null ? "—" : `+${tonight}`}</td>`
+      : "";
 
     const tr = document.createElement("tr");
     if (scoreIncreased) tr.classList.add("score-flash");
@@ -294,6 +331,7 @@ function renderTeam(rows, totalCost) {
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}</td>
         ${teamCell(player, previousTeam)}
         <td class="num score">${credited.points}</td>
+        ${tonightCell}
         ${lastNightCell}
         <td class="num">${credited.goals}</td>
         <td class="num">${credited.assists}</td>
@@ -310,6 +348,7 @@ function renderTeam(rows, totalCost) {
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}${warningIcon}</td>
         ${teamCell(null, ambiguous ? null : previousTeam)}
         <td class="num score">0</td>
+        ${tonightCell}
         ${lastNightCell}
         <td class="num">0</td>
         <td class="num">0</td>
@@ -324,6 +363,7 @@ function renderTeam(rows, totalCost) {
     <tr class="totals-row">
       <td colspan="2">Total</td>
       <td class="num score">${totalScore.toLocaleString()}</td>
+      ${hasTonight ? `<td class="num tonight${totalTonight > 0 ? " scored" : ""}">${totalTonight == null ? "—" : `+${totalTonight.toLocaleString()}`}</td>` : ""}
       <td class="num last-night${totalLastNight > 0 ? " scored" : ""}">${totalLastNight == null ? "—" : totalLastNight.toLocaleString()}</td>
       <td class="num">${totalGoals.toLocaleString()}</td>
       <td class="num">${totalAssists.toLocaleString()}</td>
