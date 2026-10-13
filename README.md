@@ -147,6 +147,21 @@ window (so it rises as old days slide out of it, and tightens up when
 comparing a subset of teams) rather than at 0; Season and Projected stay
 anchored at 0.
 
+When the site is opened, the chart draws in from left to right with each
+team's logo riding the head of its line (about 3 seconds). A logo reacts
+on the days its team's position moved — a hop and a sparkle for moving
+up, a droop and a tear for moving down, matching the logos in the table.
+Once the lines arrive, each logo gets a moment of its own, last place
+first: the same mood for how its position changed over the whole range
+(with a "▲2"/"▼1" tag), or just a pop if it ended where it started.
+
+It plays only when the site is opened from somewhere else — a typed URL,
+a bookmark, a link from elsewhere. Clicking between the site's own pages
+(judged by the referrer, `shouldPlayIntro` in `history.js`), going
+back/forward, changing the range or season, the background refresh and
+the theme toggle don't replay it, and it's skipped for anyone with
+reduced motion turned on.
+
 The range picker's fourth option, "Projected", shows the full season
 (like "Season") plus a dashed line per team: a linear trend fit
 through that team's season-to-date snapshots — weighted so recent

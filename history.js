@@ -245,6 +245,261 @@ function filterByRange(entries, range) {
   return entries.filter((e) => e.date >= cutoffStr);
 }
 
+// ---- Page-load intro -------------------------------------------------------
+// When the page opens, the lines draw in from left to right with each
+// team's logo riding the head of its line. Whenever a team's standings
+// position moved on a day the logo is passing — up or down — it reacts the
+// way the table's logos do (see playMoods in standings.js): a hop and a
+// sparkle for moving up, a droop and a tear for moving down. When the
+// lines have all arrived, each logo gets a moment of its own: the same
+// mood, but for how its position changed over the *whole* range (with a
+// "▲2"/"▼1" tag), or just a pop if it ended where it started. They
+// arrive last place first, so the leader gets the finish.
+//
+// Only the first render of a page load plays it, and only when the site
+// is being opened from somewhere else (see shouldPlayIntro): moving
+// between the site's own pages, changing the range or season, the poll
+// and the theme flip all show the chart silently, as before.
+const INTRO_MS = 2800;
+const INTRO_MOOD_MS = 900;
+const OUTRO_MOOD_MS = 1400;
+const OUTRO_STAGGER_MS = 110;
+let introConsumed = false;
+// While playing: { start, span (x-axis days covered), events (per dataset
+// index: [{ x, mood }] — the day offsets where that team's rank changed),
+// outro (per dataset index: { mood, spots, delay } — the arrival), outroMs }.
+let intro = null;
+
+function introElapsed() {
+  return performance.now() - intro.start;
+}
+
+function introProgress() {
+  return Math.min(1, introElapsed() / INTRO_MS);
+}
+
+function introDone() {
+  return introElapsed() >= INTRO_MS + intro.outroMs;
+}
+
+// Whether this page load should play the intro. Skipped when the visitor
+// got here from another page of this site (a nav link, the back link on a
+// team page...) or by back/forward — they've seen it, and it would replay
+// on every click. A fresh visit (typed URL, bookmark, a link from
+// elsewhere) has no referrer or a foreign one, and plays it.
+function shouldPlayIntro(referrer, navigationType, pageUrl) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  if (navigationType === "back_forward") return false;
+  if (!referrer) return true;
+  try {
+    const from = new URL(referrer);
+    const here = new URL(pageUrl);
+    // Same origin isn't enough on GitHub Pages — other project sites share
+    // it — so also require the referrer to be under this site's folder.
+    const base = here.pathname.slice(0, here.pathname.lastIndexOf("/") + 1);
+    return !(from.origin === here.origin && from.pathname.startsWith(base));
+  } catch {
+    return true;
+  }
+}
+
+function currentNavigationType() {
+  try {
+    return performance.getEntriesByType("navigation")[0]?.type || "navigate";
+  } catch {
+    return "navigate";
+  }
+}
+
+// Competition ranking (ties share a rank), same as the Standings table.
+function ranksForEntry(entry) {
+  const scored = entry.standings.filter((s) => typeof s.score === "number");
+  return new Map(scored.map((s) => [s.team, 1 + scored.filter((o) => o.score > s.score).length]));
+}
+
+function buildIntroEvents(entries, teamNames, dayOffset) {
+  const events = teamNames.map(() => []);
+  let previous = ranksForEntry(entries[0]);
+  for (let k = 1; k < entries.length; k++) {
+    const current = ranksForEntry(entries[k]);
+    teamNames.forEach((team, i) => {
+      const from = previous.get(team);
+      const to = current.get(team);
+      if (from === undefined || to === undefined || from === to) return;
+      events[i].push({ x: dayOffset(entries[k].date), mood: to < from ? "happy" : "sad" });
+    });
+    previous = current;
+  }
+  return events;
+}
+
+// Each team's arrival moment: how its rank at the end of the range
+// compares with its rank at the start. Teams arrive last place first.
+function buildIntroOutro(entries, teamNames) {
+  const first = ranksForEntry(entries[0]);
+  const last = ranksForEntry(entries[entries.length - 1]);
+  const worst = Math.max(1, ...last.values());
+  return teamNames.map((team) => {
+    const from = first.get(team);
+    const to = last.get(team);
+    const spots = from !== undefined && to !== undefined ? from - to : 0; // + = moved up
+    return {
+      mood: spots > 0 ? "happy" : spots < 0 ? "sad" : "pop",
+      spots,
+      delay: (worst - (to === undefined ? worst : to)) * OUTRO_STAGGER_MS,
+    };
+  });
+}
+
+// The arrival effect a team's logo is showing `sinceOutro` ms into the
+// outro, or null (not its turn yet, or it's finished).
+function introOutroAt(datasetIndex, sinceOutro) {
+  const o = intro.outro[datasetIndex];
+  if (!o) return null;
+  const age = sinceOutro - o.delay;
+  if (age < 0 || age >= OUTRO_MOOD_MS) return null;
+  return { mood: o.mood, p: age / OUTRO_MOOD_MS, spots: o.spots, arrival: true };
+}
+
+// The mood a team's logo is showing when the intro has drawn up to
+// `valueX` (in x-axis days), or null. It starts when the head reaches the
+// day the rank changed and lasts INTRO_MOOD_MS (the intro runs at a
+// constant speed, so distance along the axis is time).
+function introMoodAt(datasetIndex, valueX) {
+  const events = intro.events[datasetIndex];
+  if (!events) return null;
+  let latest = null;
+  for (const ev of events) if (ev.x <= valueX) latest = ev;
+  if (!latest) return null;
+  const age = ((valueX - latest.x) / intro.span) * INTRO_MS;
+  return age < INTRO_MOOD_MS ? { mood: latest.mood, p: age / INTRO_MOOD_MS } : null;
+}
+
+// One team's logo (or a plain dot, for a team without one) at the head of
+// its line, with its mood applied. Same sizes as the end-of-line logos it
+// hands over to when the intro finishes.
+function drawIntroHead(ctx, ds, x, y, fx) {
+  const logo = Array.isArray(ds.pointStyle) ? ds.pointStyle[ds.pointStyle.length - 1] : null;
+  ctx.save();
+  ctx.translate(x, y);
+  if (fx && fx.mood === "happy") {
+    const hop = Math.abs(Math.sin(fx.p * Math.PI * 2));
+    ctx.translate(0, -7 * hop);
+    ctx.rotate(Math.sin(fx.p * Math.PI * 4) * 0.17);
+    ctx.scale(1 + 0.12 * hop, 1 + 0.12 * hop);
+  } else if (fx && fx.mood === "pop") {
+    // Ended where it started: a quick swell and settle.
+    const s = 1 + 0.25 * Math.sin(Math.PI * Math.min(1, fx.p * 2));
+    ctx.scale(s, s);
+  } else if (fx) {
+    const env = Math.min(1, fx.p / 0.2, (1 - fx.p) / 0.2);
+    ctx.translate(0, 3 * env);
+    ctx.rotate(-0.24 * env);
+    ctx.scale(1 - 0.12 * env, 1 - 0.12 * env);
+    ctx.filter = `grayscale(${0.8 * env}) brightness(${1 - 0.2 * env})`;
+  }
+  if (logo && typeof logo === "object") {
+    ctx.drawImage(logo, -LOGO_SIZE / 2, -LOGO_SIZE / 2, LOGO_SIZE, LOGO_SIZE);
+  } else {
+    ctx.fillStyle = ds.baseColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  if (!fx) return;
+  ctx.save();
+  ctx.font = "13px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  if (fx.mood === "happy") {
+    ctx.globalAlpha = Math.sin(Math.PI * fx.p);
+    ctx.fillText("✨", x + 11, y - 15 - 6 * fx.p);
+    if (fx.arrival) {
+      // The arrival gets a second sparkle, a beat behind the first.
+      const q = Math.min(1, Math.max(0, (fx.p - 0.2) / 0.8));
+      ctx.globalAlpha = Math.sin(Math.PI * q);
+      ctx.fillText("✨", x - 10, y - 12 - 8 * q);
+    }
+  } else if (fx.mood === "sad") {
+    ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, Math.max(0, (fx.p - 0.15) / 0.85)));
+    ctx.fillText("💧", x - 9, y + 4 + 14 * fx.p);
+  }
+
+  // How far it moved over the whole range, to the left of the logo (the
+  // right edge of the chart has no room), fading in and out with the effect.
+  if (fx.arrival && fx.spots) {
+    const up = fx.spots > 0;
+    ctx.globalAlpha = Math.min(1, fx.p / 0.15, (1 - fx.p) / 0.25);
+    ctx.font = "700 12px sans-serif";
+    ctx.textAlign = "right";
+    const text = `${up ? "▲" : "▼"}${Math.abs(fx.spots)}`;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.strokeText(text, x - 19, y);
+    ctx.fillStyle = up ? "#2fb56a" : "#e5534b";
+    ctx.fillText(text, x - 19, y);
+  }
+  ctx.restore();
+}
+
+// Reveals the datasets left to right behind a moving clip edge, then draws
+// the heads on top. The clip stops just short of the right edge until the
+// very end, so the final point's own logo doesn't peek out under its head.
+const introPlugin = {
+  id: "intro",
+  beforeDatasetsDraw(c) {
+    if (!intro) return;
+    const t = introProgress();
+    const edge = c.scales.x.getPixelForValue(t * intro.span);
+    const clipRight = introDone() ? c.width : Math.min(edge, c.chartArea.right - LOGO_SIZE / 2 - 1);
+    c.ctx.save();
+    c.ctx.beginPath();
+    c.ctx.rect(0, 0, Math.max(0, clipRight), c.height);
+    c.ctx.clip();
+    intro.clipped = true;
+  },
+  afterDatasetsDraw(c) {
+    if (!intro || !intro.clipped) return;
+    intro.clipped = false;
+    c.ctx.restore();
+    if (introDone()) return; // the real end-of-line logos take over
+    const t = introProgress();
+    const valueX = t * intro.span;
+    const edge = c.scales.x.getPixelForValue(valueX);
+    const sinceOutro = introElapsed() - INTRO_MS;
+    c.data.datasets.forEach((ds, i) => {
+      if (ds.isProjection || !c.isDatasetVisible(i)) return;
+      if (t >= 1) {
+        // Arrived: the head sits on the line's last point.
+        const last = c.getDatasetMeta(i).data[ds.data.length - 1];
+        if (!last || !Number.isFinite(last.y)) return;
+        drawIntroHead(c.ctx, ds, last.x, last.y, introOutroAt(i, sinceOutro));
+        return;
+      }
+      const found = c.getDatasetMeta(i).dataset.interpolate({ x: edge }, "x");
+      const p = Array.isArray(found) ? found[0] : found;
+      if (!p || !Number.isFinite(p.y)) return;
+      drawIntroHead(c.ctx, ds, p.x, p.y, introMoodAt(i, valueX));
+    });
+  },
+};
+
+// Chart.js has nothing to animate here (its own creation animation is
+// switched off), so the intro just asks it to repaint every frame.
+function runIntro(c) {
+  const mine = intro;
+  const tick = () => {
+    if (intro !== mine || chart !== c) return; // superseded by a newer render
+    const done = introDone();
+    if (done) intro = null;
+    c.draw();
+    if (!done) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 // The 1 Week and 1 Month ranges are short windows, so starting the axis at
 // 0 would squash every line into the top of the chart — leave the bottom
 // to Chart.js there, which fits it to the lowest *shown* point in the
@@ -257,6 +512,10 @@ function yAxisMin(range) {
 
 async function renderChart(season) {
   const myToken = ++renderToken;
+  // Only the very first render of a page load can get the intro, and only
+  // when the site is being opened fresh (see shouldPlayIntro).
+  const playIntro = !introConsumed && shouldPlayIntro(document.referrer, currentNavigationType(), location.href);
+  introConsumed = true;
 
   // The range picker (including "Projected") only makes sense for the
   // season currently being played — hide it for past seasons and
@@ -359,6 +618,7 @@ async function renderChart(season) {
   const chromeColors = chartChromeColors();
 
   if (chart) {
+    intro = null; // a render landing mid-intro just shows the chart as it is
     // Update the existing instance instead of destroy+recreate — a brand
     // new Chart animates every point growing up from the axis baseline,
     // which on every poll made the whole line flash down to 0 and back.
@@ -395,10 +655,30 @@ async function renderChart(season) {
     return;
   }
 
+  // Set before the chart exists so even its first paint is clipped to
+  // nothing — the axes show, then the lines sweep in (see introPlugin).
+  const outro = playIntro ? buildIntroOutro(entries, teamNames) : [];
+  intro = playIntro
+    ? {
+        start: performance.now(),
+        span: dayOffset(entries[entries.length - 1].date),
+        events: buildIntroEvents(entries, teamNames, dayOffset),
+        outro,
+        outroMs: Math.max(0, ...outro.map((o) => o.delay)) + OUTRO_MOOD_MS,
+      }
+    : null;
+
   chart = new Chart(chartCanvas, {
     type: "line",
     data: { datasets },
+    plugins: [introPlugin],
     options: {
+      // Chart.js's own creation animation grows every point up from the
+      // axis — off here (the intro replaces it, and a chart re-created
+      // later, e.g. after a too-short range, shouldn't replay anything).
+      // Switched back on right after construction (below) so later
+      // in-place updates still glide.
+      animation: false,
       responsive: true,
       // Without this, Chart.js holds a fixed 2:1 aspect ratio — on a
       // narrow (mobile) width that caps the canvas well short of the
@@ -487,6 +767,14 @@ async function renderChart(season) {
       },
     },
   });
+
+  // Back to Chart.js's default animation settings for everything after
+  // this first paint (range changes, polls and legend clicks glide).
+  chart.options.animation = {};
+  if (intro) {
+    intro.start = performance.now();
+    runIntro(chart);
+  }
 }
 
 async function initHistory() {
