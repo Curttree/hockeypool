@@ -139,6 +139,10 @@ No action needed from you day-to-day — this just runs in the
 background. A season needs at least two days of snapshots before the
 chart shows a line; until then it shows a placeholder message instead.
 
+The chart opens on the range picker's "1 Week" option — the last 7 days
+counted back from the newest snapshot — with "1 Month" and "Season" a
+dropdown away (the default is the `selected` option in `index.html`).
+
 The range picker's fourth option, "Projected", shows the full season
 (like "Season") plus a dashed line per team: a linear trend fit
 through that team's season-to-date snapshots — weighted so recent
