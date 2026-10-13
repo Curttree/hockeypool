@@ -101,10 +101,55 @@ function formatSeasonLabel(seasonId) {
 const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
 
-// Each player's credited points as of the last render — compared against
-// on the next one so a row whose score just went up can get a brief
-// flash (see renderTeam below).
-let previousPlayerScores = null;
+// Each player's credited points/goals/assists as of the last render —
+// compared against on the next one so a row whose score just went up can
+// get a brief goal- or assist-light flash and count its score up (see
+// renderTeam below). The totals row's score likewise.
+let previousPlayerStats = null;
+let previousTotalScore = null;
+
+function reducedMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Counts a number's text from `from` to `to` (ease-out), optionally after
+// a delay and ending with a little pop (the .score-pop class the Standings
+// page uses). The final value is always written, and nothing animates for
+// people who prefer reduced motion.
+function countUp(el, from, to, { delay = 0, duration = 700, prefix = "", pop = false } = {}) {
+  const text = (n) => `${prefix}${n.toLocaleString()}`;
+  // A tab nobody is looking at doesn't run animation frames, so it would
+  // sit at the starting number — show the real one instead.
+  if (reducedMotion() || from === to || document.visibilityState === "hidden") {
+    el.textContent = text(to);
+    return;
+  }
+  // Hold the number's final width while it counts. Otherwise the column
+  // (a totals-row cell like Cost goes from "0" to "1,000") grows with it
+  // and the whole table drifts left as it does.
+  el.textContent = text(to);
+  const finalWidth = Math.ceil(el.getBoundingClientRect().width);
+  el.style.display = "inline-block";
+  el.style.minWidth = `${finalWidth}px`;
+  el.style.textAlign = "right";
+  el.textContent = text(from);
+  const begin = performance.now() + delay;
+  const step = (now) => {
+    const t = Math.max(0, Math.min(1, (now - begin) / duration));
+    el.textContent = text(Math.round(from + (to - from) * (1 - Math.pow(1 - t, 3))));
+    if (t < 1) {
+      requestAnimationFrame(step);
+      return;
+    }
+    el.style.display = el.style.minWidth = el.style.textAlign = "";
+    if (pop) {
+      el.classList.remove("score-pop");
+      void el.offsetWidth; // restarts the pop if it was already applied
+      el.classList.add("score-pop");
+    }
+  };
+  requestAnimationFrame(step);
+}
 
 async function init() {
   const params = new URLSearchParams(location.search);
@@ -128,8 +173,58 @@ async function init() {
     ? ` <span class="warn" title="Roster has ${activeCount} current players, not ${EXPECTED_ROSTER_SIZE} (traded-away players don't count)">⚠</span>`
     : "";
   const logoSrc = getTeamLogo(currentSeason, team.name);
-  const logo = logoSrc ? `<img class="team-title-logo" src="${logoSrc}" alt="" width="40" height="40">` : "";
+  const logo = logoSrc
+    ? `<span class="team-title-logo-wrap"><img class="team-title-logo" src="${logoSrc}" alt="" width="40" height="40"></span>`
+    : "";
   titleEl.innerHTML = `${logo}<span>${team.name}${rosterWarning}</span>`;
+  // Clicking (or tapping) the avatar replays the pop it does on arrival.
+  // Keep at it — a fifth click in a row, each close behind the last — and
+  // it gets angry instead: red, shaking, with 💢 popping off it.
+  const logoWrap = titleEl.querySelector(".team-title-logo-wrap");
+  if (logoWrap) {
+    const ANGRY_CLICKS = 5;
+    const CLICK_GAP_MS = 800; // a longer pause starts the count over
+    const ANGRY_MS = 1800; // keep in sync with logo-angry / fx-angry in style.css
+    let clicks = 0;
+    let lastClick = 0;
+    let angryUntil = 0;
+    const img = logoWrap.firstElementChild;
+    const restart = () => {
+      img.style.animation = "none";
+      void img.offsetWidth; // flush, so clearing it below restarts the animation
+      img.style.animation = "";
+    };
+    logoWrap.addEventListener("click", () => {
+      if (reducedMotion()) return;
+      const now = performance.now();
+      if (now < angryUntil) return; // mid-tantrum: let it finish
+      clicks = now - lastClick > CLICK_GAP_MS ? 1 : clicks + 1;
+      lastClick = now;
+      if (clicks < ANGRY_CLICKS) {
+        restart();
+        return;
+      }
+      clicks = 0;
+      angryUntil = now + ANGRY_MS;
+      logoWrap.classList.add("angry");
+      const puffs = ["avatar-fx avatar-fx-a", "avatar-fx avatar-fx-b"].map((cls) => {
+        const puff = document.createElement("span");
+        puff.className = cls;
+        puff.setAttribute("aria-hidden", "true");
+        puff.textContent = "💢";
+        logoWrap.appendChild(puff);
+        return puff;
+      });
+      restart();
+      setTimeout(() => {
+        logoWrap.classList.remove("angry");
+        puffs.forEach((puff) => puff.remove());
+        // Back to rest, without the pop it would otherwise replay on the
+        // way back to its default animation.
+        img.style.animation = "none";
+      }, ANGRY_MS);
+    });
+  }
   document.title = `Tremblay Hockey Pool - ${team.name}`;
   seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
   backLinkEl.href = `./?season=${encodeURIComponent(currentSeason)}`;
@@ -162,7 +257,11 @@ function startPolling(team) {
 }
 
 async function loadAndRender(team, isInitialLoad) {
-  if (isInitialLoad) previousPlayerScores = null; // a fresh load shouldn't flash anything
+  if (isInitialLoad) {
+    // A fresh load shouldn't flash anything.
+    previousPlayerStats = null;
+    previousTotalScore = null;
+  }
   try {
     const [roster, injuries, previousRoster, pointsHistory] = await Promise.all([
       fetchAllPlayersForSeason(currentSeason),
@@ -248,7 +347,7 @@ async function loadAndRender(team, isInitialLoad) {
     });
 
     const totalCost = computeTeamCost(currentSeason, team, previousRosterIndex);
-    renderTeam(rows, totalCost, Boolean(tonightIndexes));
+    renderTeam(rows, totalCost, Boolean(tonightIndexes), isInitialLoad);
   } catch (err) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
@@ -267,7 +366,15 @@ function nhlTeamLogo(teamAbbrevs) {
   return `<img class="nhl-logo" src="${nhlLogoUrl(abbrev)}" alt="" width="26" height="26" onerror="this.remove()">`;
 }
 
-function renderTeam(rows, totalCost, showTonight) {
+// `entrance` is true on the page's first render only: the rows settle in
+// one after another, the numbers count up from 0, and anyone who scored
+// "tonight" or "last night" gets a brief glow. (Later renders — polls, a
+// theme flip — rebuild the table silently.)
+function renderTeam(rows, totalCost, showTonight, entrance) {
+  // Not for a tab nobody is looking at: its animations wouldn't run, and the
+  // rows would sit invisible at the start of their fade until it was shown.
+  const animateIn = Boolean(entrance) && !reducedMotion() && document.visibilityState === "visible";
+  const glow = animateIn ? " scorer-glow" : ""; // added to the +N cells of anyone who scored
   tbody.innerHTML = "";
   let totalScore = 0, totalGoals = 0, totalAssists = 0;
   let totalLastNight = null; // stays null (shown as "—") until any row has a value
@@ -293,12 +400,21 @@ function renderTeam(rows, totalCost, showTonight) {
     return "<td>—</td>";
   };
 
-  const newPlayerScores = new Map();
+  const newPlayerStats = new Map();
+  const ROW_STAGGER_MS = 30;
+  // Count-ups wait until the table is on screen (end of this function):
+  // they measure each number's final width first, and a table that's still
+  // hidden on the page's first render has no width to measure.
+  const countUps = [];
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }) => {
-    if (credited) newPlayerScores.set(name, credited.points);
-    const prevScore = previousPlayerScores ? previousPlayerScores.get(name) : undefined;
+  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }, index) => {
+    if (credited) newPlayerStats.set(name, { points: credited.points, goals: credited.goals, assists: credited.assists });
+    const prev = previousPlayerStats ? previousPlayerStats.get(name) : undefined;
+    const prevScore = prev ? prev.points : undefined;
     const scoreIncreased = credited && prevScore !== undefined && credited.points > prevScore;
+    // Same goal lamp (red) / assist light (blue) as the Standings rows: a
+    // new goal since the last poll, else it was only an assist.
+    const lightClass = !scoreIncreased ? "" : credited.goals > prev.goals ? "goal-light" : "assist-light";
     const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
     const acquiredBadge = tradedIn
@@ -313,16 +429,20 @@ function renderTeam(rows, totalCost, showTonight) {
     const displayName = name;
     const costCell = `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
     if (lastNight != null) totalLastNight = (totalLastNight || 0) + lastNight;
-    const lastNightCell = `<td class="num last-night${lastNight > 0 ? " scored" : ""}">${lastNight == null ? "—" : lastNight}</td>`;
+    const lastNightCell = `<td class="num last-night${lastNight > 0 ? ` scored${glow}` : ""}">${lastNight == null ? "—" : lastNight}</td>`;
     if (tonight != null) totalTonight = (totalTonight || 0) + tonight;
     // "+N" like the Standings page's Tonight column; "—" for a player whose
     // night can't be worked out (traded away: their credit is frozen).
     const tonightCell = hasTonight
-      ? `<td class="num tonight${tonight > 0 ? " scored" : ""}">${tonight == null ? "—" : `+${tonight}`}</td>`
+      ? `<td class="num tonight${tonight > 0 ? ` scored${glow}` : ""}">${tonight == null ? "—" : `+${tonight}`}</td>`
       : "";
 
     const tr = document.createElement("tr");
-    if (scoreIncreased) tr.classList.add("score-flash");
+    if (scoreIncreased) tr.classList.add("score-flash", lightClass);
+    if (animateIn) {
+      tr.classList.add("row-in");
+      tr.style.setProperty("--i", index);
+    }
     if (credited) {
       totalScore += credited.points;
       totalGoals += credited.goals;
@@ -330,7 +450,7 @@ function renderTeam(rows, totalCost, showTonight) {
       tr.innerHTML = `
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}</td>
         ${teamCell(player, previousTeam)}
-        <td class="num score">${credited.points}</td>
+        <td class="num score"><span class="score-num">${credited.points}</span></td>
         ${tonightCell}
         ${lastNightCell}
         <td class="num">${credited.goals}</td>
@@ -347,7 +467,7 @@ function renderTeam(rows, totalCost, showTonight) {
       tr.innerHTML = `
         <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}${warningIcon}</td>
         ${teamCell(null, ambiguous ? null : previousTeam)}
-        <td class="num score">0</td>
+        <td class="num score"><span class="score-num">0</span></td>
         ${tonightCell}
         ${lastNightCell}
         <td class="num">0</td>
@@ -356,23 +476,52 @@ function renderTeam(rows, totalCost, showTonight) {
       `;
     }
     tbody.appendChild(tr);
-  });
-  previousPlayerScores = newPlayerScores;
 
+    // The page's first render counts each score up from 0, rippling down
+    // the rows; a live change counts up from the score it just had.
+    const scoreEl = tr.querySelector(".score-num");
+    if (animateIn && credited && credited.points > 0) {
+      countUps.push(() => countUp(scoreEl, 0, credited.points, { delay: 150 + index * ROW_STAGGER_MS }));
+    } else if (scoreIncreased) {
+      countUps.push(() => countUp(scoreEl, prevScore, credited.points, { duration: 900, pop: true }));
+    }
+  });
+  previousPlayerStats = newPlayerStats;
+
+  // data-count marks the totals that roll up on the first render (the
+  // final value is already the cell's text; see the count below).
   tfoot.innerHTML = `
     <tr class="totals-row">
       <td colspan="2">Total</td>
-      <td class="num score">${totalScore.toLocaleString()}</td>
-      ${hasTonight ? `<td class="num tonight${totalTonight > 0 ? " scored" : ""}">${totalTonight == null ? "—" : `+${totalTonight.toLocaleString()}`}</td>` : ""}
-      <td class="num last-night${totalLastNight > 0 ? " scored" : ""}">${totalLastNight == null ? "—" : totalLastNight.toLocaleString()}</td>
-      <td class="num">${totalGoals.toLocaleString()}</td>
-      <td class="num">${totalAssists.toLocaleString()}</td>
-      <td class="num">${totalCost.toLocaleString()}</td>
+      <td class="num score"><span class="score-num" data-count="${totalScore}">${totalScore.toLocaleString()}</span></td>
+      ${hasTonight ? `<td class="num tonight${totalTonight > 0 ? ` scored${glow}` : ""}">${totalTonight == null ? "—" : `<span data-count="${totalTonight}" data-prefix="+">+${totalTonight.toLocaleString()}</span>`}</td>` : ""}
+      <td class="num last-night${totalLastNight > 0 ? ` scored${glow}` : ""}">${totalLastNight == null ? "—" : `<span data-count="${totalLastNight}">${totalLastNight.toLocaleString()}</span>`}</td>
+      <td class="num"><span data-count="${totalGoals}">${totalGoals.toLocaleString()}</span></td>
+      <td class="num"><span data-count="${totalAssists}">${totalAssists.toLocaleString()}</span></td>
+      <td class="num"><span data-count="${totalCost}">${totalCost.toLocaleString()}</span></td>
     </tr>
   `;
+  const totalsRow = tfoot.querySelector(".totals-row");
+  if (animateIn) {
+    totalsRow.classList.add("row-in");
+    totalsRow.style.setProperty("--i", rows.length);
+    const delay = 150 + rows.length * ROW_STAGGER_MS;
+    totalsRow.querySelectorAll("[data-count]").forEach((el) => {
+      const to = Number(el.dataset.count);
+      if (to > 0) {
+        countUps.push(() => countUp(el, 0, to, { delay, duration: 900, prefix: el.dataset.prefix || "", pop: el.classList.contains("score-num") }));
+      }
+    });
+  } else if (previousTotalScore !== null && totalScore > previousTotalScore) {
+    const totalEl = totalsRow.querySelector(".score-num");
+    const fromTotal = previousTotalScore; // (updated just below, before this runs)
+    countUps.push(() => countUp(totalEl, fromTotal, totalScore, { duration: 900, pop: true }));
+  }
+  previousTotalScore = totalScore;
 
   statusEl.hidden = true;
   table.hidden = false;
+  countUps.forEach((start) => start());
 }
 
 init();

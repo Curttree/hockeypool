@@ -11,7 +11,7 @@ browsing/filtering NHL skater stats when drafting.
 | File | What it is |
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
-| `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season. The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar, and the line above the totals row. |
+| `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season. The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
 | `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
@@ -161,6 +161,21 @@ a bookmark, a link from elsewhere. Clicking between the site's own pages
 back/forward, changing the range or season, the background refresh and
 the theme toggle don't replay it, and it's skipped for anyone with
 reduced motion turned on.
+
+The team page has its own, smaller entrance (`team.js` / the "Team page
+entrance" block in `style.css`), also only on the page's first render:
+the header's divider draws in from the left and its wash fades up, the
+roster rows settle in one after another, every score counts up from 0
+(the totals row last, ending with a pop), and anyone with points in
+"Tonight" or "Last Night" gets a brief green glow on that number. The
+avatar pops on arrival and again whenever it's clicked or tapped — and
+if you keep at it (five clicks in a row, each within 0.8s of the last) it
+gets angry: red ring, flushed and shaking, with 💢 popping off it. Live
+changes while the page is open use the Standings page's goal light (red,
+for a goal) and assist light (blue, for an assist only) on the player's
+row, and count the score up from what it just was. It's all skipped with
+reduced motion, and in a tab that's opened in the background (nobody's
+there to see it, and the numbers would otherwise wait at 0).
 
 The range picker's fourth option, "Projected", shows the full season
 (like "Season") plus a dashed line per team: a linear trend fit

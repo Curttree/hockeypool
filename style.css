@@ -109,18 +109,58 @@ h1 {
   margin: 0;
 }
 
+/* Team page header: the back link on its own row with some air under it,
+   then the avatar + name with the season label centered on that same row
+   (a grid, so the label lines up with the name rather than with the middle
+   of the whole block). The wrapping <div> is dissolved so its link and
+   title become grid items. */
+.team-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px 16px;
+}
+.team-header > div { display: contents; }
+.team-header .back-link {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-bottom: 0;
+}
+.team-header .season-label { text-align: right; }
+
 /* Team page: pool team's logo beside its name. */
 #team-title {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+/* The ring (see .has-team-color below) sits on the wrapper so it holds its
+   size while the avatar inside pops. */
+.team-title-logo-wrap {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  /* Clicking/tapping it replays the pop, and five quick clicks make it
+     angry (team.js). */
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 .team-title-logo {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0;
+  /* The same quick swell-and-settle the chart's logos do on arrival
+     (history.js), once, as the page opens. */
+  animation: logo-pop 0.7s ease-in-out 0.1s;
+}
+@keyframes logo-pop {
+  0%, 100% { transform: none; }
+  50% { transform: scale(1.25); }
 }
 
 /* Team page accents in the team's chart color (--team-color, set by team.js):
@@ -129,11 +169,100 @@ h1 {
    thick line above the totals row. Lines, a ring and a wash rather than
    text, since some team colors (the yellow) are too pale to read as text. */
 .has-team-color .team-header {
-  border-bottom: 3px solid var(--team-color);
-  background: linear-gradient(to right, color-mix(in srgb, var(--team-color) 22%, transparent), transparent 75%);
+  position: relative;
+  isolation: isolate;
+  /* Same 3px as before, drawn by ::after below so it can sweep in. */
+  border-bottom: 3px solid transparent;
 }
-.has-team-color .team-title-logo { box-shadow: 0 0 0 3px var(--team-color); }
+.has-team-color .team-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to right, color-mix(in srgb, var(--team-color) 22%, transparent), transparent 75%);
+  animation: header-wash-in 0.9s ease-out backwards;
+}
+.has-team-color .team-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 3px;
+  background: var(--team-color);
+  transform-origin: left center;
+  animation: header-divider-draw 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes header-wash-in { from { opacity: 0; } }
+@keyframes header-divider-draw { from { transform: scaleX(0); } }
+.has-team-color .team-title-logo-wrap { box-shadow: 0 0 0 3px var(--team-color); }
+
+/* Angry (five quick clicks on the avatar, team.js): the ring goes red, the
+   avatar flushes red and shakes, and a couple of 💢 pop off it. Same 1.8s
+   as ANGRY_MS there. */
+.team-title-logo-wrap.angry,
+.has-team-color .team-title-logo-wrap.angry {
+  box-shadow: 0 0 0 3px #ff3b3b, 0 0 14px 3px rgba(255, 59, 59, 0.55);
+}
+.team-title-logo-wrap.angry .team-title-logo { animation: logo-angry 1.8s ease-in-out; }
+@keyframes logo-angry {
+  0%, 100% { transform: none; filter: none; }
+  8% { transform: scale(1.15) rotate(-5deg); filter: sepia(1) saturate(6) hue-rotate(-50deg); }
+  14% { transform: scale(1.15) translateX(-3px) rotate(4deg); }
+  20% { transform: scale(1.15) translateX(3px) rotate(-4deg); }
+  26% { transform: scale(1.15) translateX(-3px) rotate(4deg); }
+  32% { transform: scale(1.15) translateX(3px) rotate(-4deg); }
+  38% { transform: scale(1.15) translateX(-3px) rotate(4deg); }
+  44% { transform: scale(1.15) translateX(3px) rotate(-4deg); }
+  50% { transform: scale(1.15) translateX(-3px) rotate(4deg); }
+  56% { transform: scale(1.15) translateX(3px) rotate(-4deg); }
+  62% { transform: scale(1.12) translateX(-2px) rotate(3deg); filter: sepia(1) saturate(6) hue-rotate(-50deg); }
+  70% { transform: scale(1.08) translateX(2px) rotate(-2deg); filter: sepia(0.6) saturate(3) hue-rotate(-40deg); }
+  85% { transform: scale(1.02); filter: sepia(0.2) saturate(1.5) hue-rotate(-20deg); }
+}
+.avatar-fx {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  animation: fx-angry 1.8s ease-out;
+}
+.avatar-fx-a { top: -10px; right: -12px; }
+.avatar-fx-b { top: -6px; left: -12px; animation-delay: 0.25s; }
+@keyframes fx-angry {
+  0% { opacity: 0; transform: scale(0.3); }
+  12% { opacity: 1; transform: scale(1.4) rotate(-12deg); }
+  25% { transform: scale(0.95) rotate(6deg); }
+  38% { transform: scale(1.25) rotate(-8deg); }
+  52% { transform: scale(1) rotate(0deg); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.8) translateY(-5px); }
+}
 .has-team-color .totals-row td { border-top: 3px solid var(--team-color); }
+
+/* Team page entrance (team.js, first render only): rows settle in one after
+   another (--i is the row's index), and anyone with points tonight or last
+   night gets a brief green glow on that number as the rows land. */
+#team-table tr.row-in {
+  animation: row-in 0.4s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+/* Equal-width digits, so a number counting up doesn't jitter (team.js). */
+#team-table .score-num, #team-table [data-count] { font-variant-numeric: tabular-nums; }
+.scorer-glow {
+  animation: scorer-glow 1.6s ease-in-out backwards;
+  animation-delay: calc(var(--i, 0) * 30ms + 450ms);
+}
+@keyframes scorer-glow {
+  0%, 100% { text-shadow: 0 0 0 transparent; }
+  35% { text-shadow: 0 0 10px rgba(47, 181, 106, 0.95), 0 0 2px rgba(47, 181, 106, 0.9); }
+}
 
 /* NHL team logo beside the abbreviation in the team page's Team column. */
 .nhl-logo {
@@ -864,7 +993,10 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
 
 @media (prefers-reduced-motion: reduce) {
   .score-pop, .leader-crown, .rank-value.medal-shine::after,
-  .recap, .recap-item { animation: none; }
+  .recap, .recap-item, .team-title-logo,
+  #team-table tr.row-in, .scorer-glow, .avatar-fx,
+  .team-title-logo-wrap.angry .team-title-logo,
+  .has-team-color .team-header::before, .has-team-color .team-header::after { animation: none; }
   .score-flash.goal-light, .score-flash.assist-light,
   .score-flash.goal-light > td:first-child, .score-flash.assist-light > td:first-child { animation: none; }
   .rank-value.medal-shine::after { display: none; }
