@@ -593,6 +593,39 @@
           "score": 80
         }
       ]
+    },
+    {
+      "date": "2026-10-15",
+      "standings": [
+        {
+          "team": "Curtis",
+          "score": 133
+        },
+        {
+          "team": "Rick",
+          "score": 128
+        },
+        {
+          "team": "Hannah",
+          "score": 118
+        },
+        {
+          "team": "Gayle",
+          "score": 105
+        },
+        {
+          "team": "Anmol",
+          "score": 100
+        },
+        {
+          "team": "Jordan",
+          "score": 92
+        },
+        {
+          "team": "Luke",
+          "score": 88
+        }
+      ]
     }
   ]
 }
