@@ -11,7 +11,7 @@ function formatSeasonLabel(seasonId) {
 }
 
 // A team costing more than this (prior-season points, traded-away
-// players subtracted — see computeTeamCost in teams.js) gets flagged on
+// players left out — see computeTeamCost in teams.js) gets flagged on
 // the Standings page, in case the pool enforces a salary-cap-style limit.
 const COST_WARNING_THRESHOLD = 1000;
 

@@ -124,10 +124,18 @@ const TEAMS_BY_SEASON = {
         logo: "images/rick.png",
         players:["Leon Draisaitl", "Kirill Kaprizov", "William Nylander", "Jack Hughes", "Mikko Rantanen", "Robert Thomas", "Sam Reinhart", "Brady Tkachuk", "Auston Matthews",
         "Zach Hyman", "Jimmy Snuggerud", "Brayden Point", "Jordan Kyrou", "Matthew Tkachuk", "Josh Norris", "Gabe Perreault", "Pierre-Luc Dubois",
-        "Tyler Seguin", "Porter Martone", "Ilya Protas"]
+        "Tyler Seguin", "Porter Martone", "Ilya Protas", "Vasily Podkolzin"]
     }
     ],
-    trades: [],
+    trades: [
+      // Rick sends Zach Hyman out for Vasily Podkolzin. Both stat lines are
+      // their season totals at the time of the trade (2026-10-27).
+      {
+        team: "Rick",
+        playerOut: { name: "Zach Hyman", points: 1, goals: 1, assists: 0 },
+        playerIn: { name: "Vasily Podkolzin", points: 13, goals: 8, assists: 5 },
+      },
+    ],
     seasonEnd: "2027-04-10",
   }
 };
@@ -188,11 +196,14 @@ function previousSeasonId(season) {
   return `${start}${end}`;
 }
 
-// Sums a team's "Cost": each player's prior-season point total, minus
-// (rather than plus) anyone traded away, since they're no longer really
-// part of the roster going forward. `previousRosterIndex` is the prior
-// season's roster (buildRosterIndex) — fetch and build it once per
-// season and reuse it across every team, rather than per team.
+// Sums a team's "Cost": each current player's prior-season point total.
+// Anyone traded away is left out — they stay in `players` for scoring
+// continuity, but they're no longer really part of the roster going
+// forward — while the player who came back in the trade is counted like
+// anyone else (so a trade moves the total by the difference between the
+// two players' costs). `previousRosterIndex` is the prior season's roster
+// (buildRosterIndex) — fetch and build it once per season and reuse it
+// across every team, rather than per team.
 function computeTeamCost(season, team, previousRosterIndex) {
   let totalCost = 0;
   team.players.forEach((entry) => {
@@ -202,7 +213,7 @@ function computeTeamCost(season, team, previousRosterIndex) {
     // differ from the (current-season) hint in teams.js.
     const resolved = resolvePlayer(previousRosterIndex, name, null, playerPositionHint(entry), playerIdHint(entry));
     const previousPoints = !resolved.ambiguous && resolved.player ? resolved.player.points : null;
-    if (previousPoints != null) totalCost += tradedOut ? -previousPoints : previousPoints;
+    if (previousPoints != null && !tradedOut) totalCost += previousPoints;
   });
   return totalCost;
 }
