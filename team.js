@@ -346,6 +346,13 @@ async function loadAndRender(team, isInitialLoad) {
       };
     });
 
+    // Highest cost first, by each player's actual prior-season total — a
+    // traded-away player keeps their place in the order even though their
+    // cell shows "—". A player with no prior-season total goes last. The
+    // sort is stable, so ties keep the order they're listed in teams.js.
+    const costKey = (row) => (row.previousPoints == null ? -1 : row.previousPoints);
+    rows.sort((a, b) => costKey(b) - costKey(a));
+
     const totalCost = computeTeamCost(currentSeason, team, previousRosterIndex);
     renderTeam(rows, totalCost, Boolean(tonightIndexes), isInitialLoad);
   } catch (err) {
@@ -427,7 +434,11 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
     // row, and the spelling people know (the NHL's own can differ, e.g.
     // "Nicholas Paul", or be abbreviated in live data, e.g. "A. Barkov").
     const displayName = name;
-    const costCell = `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
+    // A traded-away player no longer counts toward the team's cost (see
+    // computeTeamCost), so there's no number to show for them.
+    const costCell = tradedOut
+      ? `<td class="num" title="Traded away — not counted toward the team's cost">—</td>`
+      : `<td class="num" title="Points scored the previous season">${previousPoints == null ? "—" : previousPoints}</td>`;
     if (lastNight != null) totalLastNight = (totalLastNight || 0) + lastNight;
     const lastNightCell = `<td class="num last-night${lastNight > 0 ? ` scored${glow}` : ""}">${lastNight == null ? "—" : lastNight}</td>`;
     if (tonight != null) totalTonight = (totalTonight || 0) + tonight;
