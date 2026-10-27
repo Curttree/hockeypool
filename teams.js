@@ -56,6 +56,13 @@
 //   NHL regular season wraps up — so you only need to set this if that
 //   guess is off for a given year.
 //
+// - tradeDeadline (optional, on the season object too): the pool's trade
+//   deadline as an ISO date-time with its UTC offset, e.g.
+//   "2027-03-01T15:00:00-05:00" (3pm Eastern, before daylight saving
+//   starts). Marks the "Standings Over Time" chart's Projected range with
+//   a vertical line, and shows a reminder banner (see deadline.js) from a
+//   week before until the deadline passes.
+//
 // Injury status is normally detected automatically on the team detail
 // page (see common.js's fetchInjuries, sourced from ESPN's public
 // feed since the NHL's own API has no injury data). The manual
@@ -137,6 +144,7 @@ const TEAMS_BY_SEASON = {
       },
     ],
     seasonEnd: "2027-04-10",
+    tradeDeadline: "2027-03-01T15:00:00-05:00",
   }
 };
 
@@ -186,6 +194,14 @@ function getSeasonEnd(season) {
   if (configured) return configured;
   const endYear = season.slice(4);
   return `${endYear}-04-15`;
+}
+
+// A season's trade deadline as a Date, or null if none is configured (or
+// the configured value isn't a valid date-time) — see the schema comment above.
+function getTradeDeadline(season) {
+  const configured = TEAMS_BY_SEASON[season] && TEAMS_BY_SEASON[season].tradeDeadline;
+  const date = configured ? new Date(configured) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
 }
 
 // "20262027" -> "20252026" — used to look up each player's prior-season

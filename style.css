@@ -44,6 +44,48 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* Trade-deadline reminder under the nav (deadline.js): amber, a touch
+   stronger on the day itself. */
+.deadline-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px clamp(16px, 4vw, 32px);
+  background: color-mix(in srgb, #ffb020 16%, var(--panel));
+  border-bottom: 1px solid color-mix(in srgb, #ffb020 45%, transparent);
+  color: var(--text);
+  font-size: 0.9rem;
+  animation: deadline-in 0.4s ease-out;
+}
+.deadline-notice.day {
+  background: color-mix(in srgb, #ffb020 28%, var(--panel));
+  font-weight: 600;
+}
+.deadline-notice-icon { flex-shrink: 0; }
+.deadline-notice.day .deadline-notice-icon { animation: deadline-tick 1.6s ease-in-out infinite; transform-origin: 50% 55%; }
+.deadline-notice-text { flex: 1; min-width: 0; }
+.deadline-notice-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.deadline-notice-close:hover { color: var(--text); }
+@keyframes deadline-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes deadline-tick {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  68% { transform: rotate(-14deg); }
+  76% { transform: rotate(12deg); }
+  84% { transform: rotate(-8deg); }
+  92% { transform: rotate(4deg); }
+}
+
 .site-nav-inner {
   display: flex;
   align-items: center;
@@ -801,6 +843,13 @@ tbody tr:hover { background: var(--row-hover); }
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+/* On anything wider than a phone the chart grows with the window — taller
+   lines are easier to tell apart — within sensible limits. Phones keep the
+   420px above: they're narrow, and a much taller chart would take over the
+   screen. */
+@media (min-width: 700px) {
+  .chart-container { height: clamp(480px, 68vh, 760px); }
+}
 
 #fill-status {
   margin-bottom: 12px;
@@ -1022,6 +1071,7 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
 @media (prefers-reduced-motion: reduce) {
   .score-pop, .leader-crown, .rank-value.medal-shine::after,
   .recap, .recap-item, .team-title-logo,
+  .deadline-notice, .deadline-notice-icon,
   #team-table tr.row-in, .scorer-glow, .avatar-fx,
   .team-title-logo-wrap.angry .team-title-logo,
   .has-team-color .team-header::before, .has-team-color .team-header::after { animation: none; }

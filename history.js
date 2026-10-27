@@ -5,6 +5,7 @@
 // chart still polls, to keep today's live placeholder point up to date
 // (see fetchLiveEntry).
 const HISTORY_URL = "data/standings-history.json";
+const PROJECTION_NOTE = "Dashed lines project each team's full-season pace.";
 const chartCanvas = document.getElementById("standings-chart");
 const chartStatus = document.getElementById("chart-status");
 const chartHint = document.getElementById("chart-hint");
@@ -500,6 +501,41 @@ function runIntro(c) {
   requestAnimationFrame(tick);
 }
 
+// The trade deadline, marked as a dashed amber line with a small label at
+// the top, in whichever range being shown it falls inside — the Projected
+// range always reaches it, the Season range once it has passed, and a
+// shorter range if it happens to be in that window. Out of range, nothing. Its position and text come from the
+// chart's `options.plugins.tradeDeadline` ({ x, label }, x null = none),
+// set on every render in renderChart.
+const DEADLINE_COLOR = "#ffb020";
+const tradeDeadlinePlugin = {
+  id: "tradeDeadline",
+  afterDatasetsDraw(c, _args, opts) {
+    if (!opts || opts.x == null) return;
+    const { left, right, top, bottom } = c.chartArea;
+    const x = Math.round(c.scales.x.getPixelForValue(opts.x)) + 0.5;
+    if (x < left || x > right) return; // outside the range being shown
+    const ctx = c.ctx;
+    ctx.save();
+    ctx.strokeStyle = DEADLINE_COLOR;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // The label sits on whichever side of the line has room.
+    ctx.font = "600 11px sans-serif";
+    ctx.fillStyle = DEADLINE_COLOR;
+    ctx.textBaseline = "top";
+    const flip = x + 8 + ctx.measureText(opts.label).width > right;
+    ctx.textAlign = flip ? "right" : "left";
+    ctx.fillText(opts.label, flip ? x - 6 : x + 6, top + 4);
+    ctx.restore();
+  },
+};
+
 // The 1 Week and 1 Month ranges are short windows, so starting the axis at
 // 0 would squash every line into the top of the chart — leave the bottom
 // to Chart.js there, which fits it to the lowest *shown* point in the
@@ -586,12 +622,19 @@ async function renderChart(season) {
       baseColor: color,
     };
 
+    // Just the lines, with no dot on every day (it clutters them) — only the
+    // end of each is marked: its logo, or a dot for a team without one.
+    // Hovering still picks out the nearest day: the dot appears and the
+    // tooltip shows, which is what the wider hit radius is for.
+    const lastIndex = dataset.data.length - 1;
+    dataset.pointRadius = dataset.data.map((_, idx) => (idx === lastIndex ? 3 : 0));
+    dataset.pointHitRadius = 8;
+
     const logoSrc = getTeamLogo(season, team);
     const logo = logoSrc ? await loadLogo(logoSrc) : null;
     if (logo) {
-      const lastIndex = dataset.data.length - 1;
       dataset.pointStyle = dataset.data.map((_, idx) => (idx === lastIndex ? logo : "circle"));
-      dataset.pointRadius = dataset.data.map((_, idx) => (idx === lastIndex ? LAST_POINT_RADIUS : 3));
+      dataset.pointRadius = dataset.data.map((_, idx) => (idx === lastIndex ? LAST_POINT_RADIUS : 0));
     }
 
     return dataset;
@@ -614,6 +657,20 @@ async function renderChart(season) {
   chartCanvas.hidden = false;
   chartHint.hidden = false;
   projectionNote.hidden = !addedProjection;
+
+  // The trade deadline's line (the plugin skips it when it's outside the
+  // range). The note under the chart only comes with the Projected range.
+  // (getTradeDeadline / formatDeadlineParts come from teams.js / deadline.js —
+  // checked in case a browser pairs a cached older copy of one with this file.)
+  const canMarkDeadline = typeof getTradeDeadline === "function" && typeof formatDeadlineParts === "function";
+  const deadline = canMarkDeadline ? getTradeDeadline(season) : null;
+  const deadlineParts = deadline ? formatDeadlineParts(deadline) : null;
+  const deadlineOpts = deadline
+    ? { x: dayOffset(easternDate(deadline)), label: `Trade deadline · ${deadlineParts.day.split(", ")[1]}` }
+    : { x: null };
+  projectionNote.textContent = deadline && rangeSelect.value === "projected"
+    ? `${PROJECTION_NOTE} The amber line marks the trade deadline (${deadlineParts.day} at ${deadlineParts.time}).`
+    : PROJECTION_NOTE;
 
   const chromeColors = chartChromeColors();
 
@@ -641,6 +698,7 @@ async function renderChart(season) {
     chart.data.datasets.forEach((ds, i) => {
       if (ds.projectionFor !== undefined) chart.setDatasetVisibility(i, chart.isDatasetVisible(ds.projectionFor));
     });
+    chart.options.plugins.tradeDeadline = deadlineOpts;
     chart.options.plugins.tooltip.callbacks.title = (items) =>
       items.length ? formatDayOffset(baseTime, items[0].parsed.x) : "";
     chart.options.plugins.legend.labels.color = chromeColors.text;
@@ -671,7 +729,7 @@ async function renderChart(season) {
   chart = new Chart(chartCanvas, {
     type: "line",
     data: { datasets },
-    plugins: [introPlugin],
+    plugins: [introPlugin, tradeDeadlinePlugin],
     options: {
       // Chart.js's own creation animation grows every point up from the
       // axis — off here (the intro replaces it, and a chart re-created
@@ -686,6 +744,7 @@ async function renderChart(season) {
       maintainAspectRatio: false,
       onHover: onChartHover,
       plugins: {
+        tradeDeadline: deadlineOpts,
         tooltip: {
           callbacks: {
             title: (items) => (items.length ? formatDayOffset(baseTime, items[0].parsed.x) : ""),

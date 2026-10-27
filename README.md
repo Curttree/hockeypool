@@ -145,7 +145,9 @@ dropdown away (the default is the `selected` option in `index.html`).
 On 1 Week and 1 Month the y-axis starts near the lowest point in the
 window (so it rises as old days slide out of it, and tightens up when
 comparing a subset of teams) rather than at 0; Season and Projected stay
-anchored at 0.
+anchored at 0. Every view draws just the lines, without a dot on every day
+(they clutter it) — each line keeps its logo at the end, and hovering still
+picks out a day.
 
 When the site is opened, the chart draws in from left to right with each
 team's logo riding the head of its line (about 3 seconds). A logo reacts
@@ -217,6 +219,20 @@ always just show their full history.
   and lands on the new one with a bounce and a little confetti. All off for
   reduced motion. `?preview-moods` and `?preview-crown` replay the moods and
   the hand-off on demand, without waiting for a real change.
+- **Trade deadline** (`tradeDeadline` on the season in `teams.js`, e.g.
+  `"2027-03-01T15:00:00-05:00"` — 3pm Eastern, so mind the UTC offset if it
+  ever falls after daylight saving starts in March): the chart draws
+  a dashed amber vertical line on that day with a "Trade deadline" label
+  (history.js) in any range it falls inside: always on **Projected**, on
+  **Season** and **1 Month** once the deadline has passed (and on a shorter
+  range if it's within that window); before then those ranges stop short of
+  it, so there's nothing to draw. `deadline.js` shows a dismissible
+  banner under the nav on the Standings, Team and Games pages: from a week
+  before it says when the deadline is and how many days are left, and on the
+  day itself it reminds again — even if the week one was dismissed — until
+  3pm Eastern passes. Dismissals are remembered per reminder in
+  `localStorage`. `?preview-deadline=week` / `=day` show either banner now.
+  Leave `tradeDeadline` out of a season to turn both off.
 - **"Tonight" column**: each team's points from the current night's
   games only (the Worker's `/api/live` splits every player's live points
   by game date, so one night's points can be told from another's). It
