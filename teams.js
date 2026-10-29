@@ -107,7 +107,7 @@ const TEAMS_BY_SEASON = {
         logo: "images/hannah.png",
         players: ["Nathan MacKinnon","Evan Bouchard", "William Nylander", "Jack Hughes", "Sidney Crosby", "Mark Stone", "Leo Carlsson",
           "Ivan Barbashev", "Auston Matthews", "J.T. Miller", "Vladimir Tarasenko", "Boone Jenner", "Michael Amadio", "Andre Burakovsky",
-          "Jake Evans", "Nick Cousins", "Tyler Seguin", "Barclay Goodrow", "William Karlsson", "Nils Hoglander"
+          "Jake Evans", "Nick Cousins", "Tyler Seguin", "Barclay Goodrow", "William Karlsson", "Nils Hoglander", "JJ Peterka"
         ]
     },
     {
@@ -141,6 +141,14 @@ const TEAMS_BY_SEASON = {
         team: "Rick",
         playerOut: { name: "Zach Hyman", points: 1, goals: 1, assists: 0 },
         playerIn: { name: "Vasily Podkolzin", points: 13, goals: 8, assists: 5 },
+      },
+      // Hannah sends Vladimir Tarasenko out for JJ Peterka (season totals at
+      // the time of the trade, 2026-10-29). Tarasenko hasn't played this
+      // season, so his line is empty.
+      {
+        team: "Hannah",
+        playerOut: { name: "Vladimir Tarasenko", points: 0, goals: 0, assists: 0 },
+        playerIn: { name: "JJ Peterka", points: 9, goals: 4, assists: 5 },
       },
     ],
     seasonEnd: "2027-04-10",
