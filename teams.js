@@ -49,13 +49,6 @@
 //   as nobody checking rosters are exactly 20 players; just a rule to
 //   follow when editing this file.
 //
-// - seasonEnd (optional, on the season object alongside `teams`/`trades`):
-//   a "YYYY-MM-DD" date used only by the "Standings Over Time" chart's
-//   season-end projection option. Omit it and it defaults to April 15
-//   of the season's second year — a reasonable stand-in for when an
-//   NHL regular season wraps up — so you only need to set this if that
-//   guess is off for a given year.
-//
 // - tradeDeadline (optional, on the season object too): the pool's trade
 //   deadline as an ISO date-time with its UTC offset, e.g.
 //   "2027-03-01T15:00:00-05:00" (3pm Eastern, before daylight saving
@@ -151,7 +144,6 @@ const TEAMS_BY_SEASON = {
         playerIn: { name: "JJ Peterka", points: 9, goals: 4, assists: 5 },
       },
     ],
-    seasonEnd: "2027-04-10",
     tradeDeadline: "2027-03-01T15:00:00-05:00",
   }
 };
@@ -192,16 +184,6 @@ const TEAM_COLORS = [
 function getTeamColor(season, name) {
   const index = getTeamsForSeason(season).findIndex((t) => t.name === name);
   return index < 0 ? null : TEAM_COLORS[index % TEAM_COLORS.length];
-}
-
-// A season's end date, for the history chart's season-end projection
-// option. Falls back to April 15 of the season's second year if not
-// configured explicitly (see the schema comment above).
-function getSeasonEnd(season) {
-  const configured = TEAMS_BY_SEASON[season] && TEAMS_BY_SEASON[season].seasonEnd;
-  if (configured) return configured;
-  const endYear = season.slice(4);
-  return `${endYear}-04-15`;
 }
 
 // A season's trade deadline as a Date, or null if none is configured (or

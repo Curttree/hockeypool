@@ -360,9 +360,15 @@ async function fetchInjuries() {
       (team.injuries || []).forEach((injury) => {
         const name = injury.athlete && injury.athlete.displayName;
         if (!name) return;
+        const details = injury.details || {};
         entries.push([normalizePlayerName(name), {
           status: injury.status || "Injured",
           comment: injury.shortComment || injury.longComment || "",
+          type: details.type || "", // "Lower Body", "Concussion", ...
+          // ESPN's estimate of when they're back ("YYYY-MM-DD") — a best
+          // guess, and often just a default of about a week when nothing
+          // more specific has been reported.
+          returnDate: details.returnDate || null,
         }]);
       });
     });
@@ -377,6 +383,18 @@ async function fetchInjuries() {
   } catch {
     return new Map();
   }
+}
+
+// The injury icon's tooltip: status and type, the expected return when it's
+// still ahead of us (a passed date is stale, so it's left out), then the
+// feed's comment — unless that's just a placeholder like "ir" or "out".
+function injuryTooltip(injury) {
+  const headline = [injury.status, injury.type].filter(Boolean).join(" · ");
+  const back = injury.returnDate && injury.returnDate >= easternDate()
+    ? `Expected back ${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(new Date(`${injury.returnDate}T12:00:00Z`))}`
+    : "";
+  const comment = injury.comment && injury.comment.length > 4 ? injury.comment : "";
+  return [[headline, back].filter(Boolean).join(" — "), comment].filter(Boolean).join("\n");
 }
 
 // "YYYY-MM-DD" in US Eastern time for a moment (default: now) — the

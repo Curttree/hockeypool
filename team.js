@@ -342,7 +342,7 @@ async function loadAndRender(team, isInitialLoad) {
             ),
         tonight: ambiguous || !tonightIndexes ? null : liveNightPoints(entry, tradeInfo, tonightIndexes),
         injured: manuallyFlagged || Boolean(liveInjury),
-        injuryLabel: liveInjury ? (liveInjury.comment || liveInjury.status) : "Injured",
+        injuryLabel: liveInjury ? injuryTooltip(liveInjury) : "Injured",
       };
     });
 
@@ -422,7 +422,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
     // Same goal lamp (red) / assist light (blue) as the Standings rows: a
     // new goal since the last poll, else it was only an assist.
     const lightClass = !scoreIncreased ? "" : credited.goals > prev.goals ? "goal-light" : "assist-light";
-    const injuryTitle = (injuryLabel || "Injured").replace(/"/g, "&quot;");
+    const injuryTitle = (injuryLabel || "Injured").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
     const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
     const acquiredBadge = tradedIn
       ? `<span class="traded-badge" title="Acquired via trade — stats before joining this team don't count">Acquired</span>`

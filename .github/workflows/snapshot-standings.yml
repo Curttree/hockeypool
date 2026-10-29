@@ -65,10 +65,19 @@ jobs:
         working-directory: .github/scripts
         run: node snapshot-standings.mjs
 
+      # The Projected chart range follows the real NHL schedule (games get
+      # postponed and rescheduled, so it's re-read daily). Best effort: if
+      # the NHL's API is down, the snapshot is still saved and the chart
+      # keeps using the schedule from the last good run.
+      - name: Refresh NHL schedule
+        continue-on-error: true
+        working-directory: .github/scripts
+        run: node fetch-schedule.mjs
+
       - name: Commit snapshot if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/standings-history.json data/player-points.json
+          git add data/standings-history.json data/player-points.json data/schedule.json
           git diff --cached --quiet || git commit -m "Snapshot standings for $(date -u -d yesterday +%Y-%m-%d)"
           git push

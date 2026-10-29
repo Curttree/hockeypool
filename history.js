@@ -101,31 +101,6 @@ function loadLogo(src) {
   return logoCache.get(src);
 }
 
-// A pace shift from a month ago should count for less than one from
-// yesterday — each point's weight halves every this many days further
-// back from the most recent point being fit.
-const PROJECTION_HALF_LIFE_DAYS = 7;
-
-// Weighted least-squares fit of y = m*x + b through the given
-// { x, y, w } points. Returns null if there aren't at least 2 points,
-// or they're all at the same x (a vertical fit isn't meaningful here).
-function weightedLinearRegression(points) {
-  if (points.length < 2) return null;
-  let sumW = 0, sumWX = 0, sumWY = 0, sumWXY = 0, sumWXX = 0;
-  points.forEach(({ x, y, w }) => {
-    sumW += w;
-    sumWX += w * x;
-    sumWY += w * y;
-    sumWXY += w * x * y;
-    sumWXX += w * x * x;
-  });
-  const denom = sumW * sumWXX - sumWX * sumWX;
-  if (denom === 0) return null;
-  const m = (sumW * sumWXY - sumWX * sumWY) / denom;
-  const b = (sumWY - m * sumWX) / sumW;
-  return { m, b };
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // The x-axis is a plain linear scale of "days since the first point"
@@ -136,53 +111,197 @@ function formatDayOffset(baseTime, offset) {
   return new Date(baseTime + offset * DAY_MS).toISOString().slice(0, 10);
 }
 
-// Builds one dashed "projection" dataset per team: a linear trend fit
-// through that team's already-captured points (over whatever range is
-// currently selected) — weighted so recent snapshots count more than
-// older ones — extrapolated to the season's end date. Returns [] if
-// the season's already effectively over, or there's nothing worth
-// projecting from.
-function buildProjectionDatasets(season, entries, teamNames, realDatasets) {
-  const seasonEnd = getSeasonEnd(season);
-  const seasonEndTime = new Date(seasonEnd).getTime();
-  const baseTime = new Date(entries[0].date).getTime();
-  const lastTime = new Date(entries[entries.length - 1].date).getTime();
-  if (!(seasonEndTime > lastTime)) return [];
+// ---- Projection ------------------------------------------------------------
+// The NHL schedule (data/schedule.json, refreshed daily by
+// .github/scripts/fetch-schedule.mjs): season -> NHL team -> its regular-season
+// game dates. Stays null if the file can't be loaded, in which case there's
+// nothing to project from and the Projected range shows just the real lines.
+const SCHEDULE_URL = "data/schedule.json";
+let scheduleData = null;
 
-  const endX = (seasonEndTime - baseTime) / DAY_MS;
-  const lastX = (lastTime - baseTime) / DAY_MS;
+// date -> the NHL teams with a game that day, plus the season's first and
+// last game dates, for the given season; null if there's no schedule for it.
+function buildScheduleIndex(season) {
+  const schedule = scheduleData && scheduleData[season];
+  if (!schedule) return null;
+  const playing = new Map();
+  Object.entries(schedule).forEach(([abbrev, dates]) => {
+    dates.forEach((date) => {
+      if (!playing.has(date)) playing.set(date, new Set());
+      playing.get(date).add(abbrev);
+    });
+  });
+  if (!playing.size) return null;
+  const dates = [...playing.keys()].sort();
+  return { playing, firstDate: dates[0], lastDate: dates[dates.length - 1] };
+}
+
+// A player's pace weighs recent games more than old ones: games are bucketed
+// into weeks counting back from today, and each week counts half as much as
+// the one after it (a game's weight halves every 7 days), with everything
+// older than the last week lumped in at that weight. Stat totals "as of" a
+// date come from the stats API's `before` filter, one request per week
+// boundary — fetched once per date and kept, since a past date's totals
+// never change.
+const PACE_WINDOW_DAYS = 7;
+const PACE_WINDOWS = 5;
+const totalsBeforeCache = new Map(); // "season|date" -> Promise<Map<playerId, { points, gamesPlayed }>>
+
+function fetchTotalsBefore(season, date) {
+  const key = `${season}|${date}`;
+  if (!totalsBeforeCache.has(key)) {
+    const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC", before: date });
+    const request = fetch(`${API_BASE}/api/players?${params}`)
+      .then((r) => r.json())
+      .then(({ players }) => new Map(players.map((p) => [p.playerId, { points: p.points, gamesPlayed: p.gamesPlayed }])));
+    totalsBeforeCache.set(key, request);
+    request.catch(() => totalsBeforeCache.delete(key)); // a failure isn't remembered
+  }
+  return totalsBeforeCache.get(key);
+}
+
+// Season totals as of the start of each of the last PACE_WINDOWS weeks
+// (index 0 = a week ago). A boundary before the season's first game has
+// nothing yet, so it needs no request (null). Resolves to null if any
+// request fails — the pace then falls back to the plain season average.
+function fetchWeeklyBoundaryTotals(season, firstGameDate) {
+  const today = Date.parse(easternDate());
+  const boundaries = Array.from({ length: PACE_WINDOWS }, (_, i) =>
+    new Date(today - (i + 1) * PACE_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10));
+  return Promise.all(boundaries.map((date) => (date > firstGameDate ? fetchTotalsBefore(season, date) : null)))
+    .catch(() => null);
+}
+
+// Points per game played, recency-weighted (see PACE_WINDOW_DAYS), from
+// the player's totals now and at each week boundary.
+function recentPace(player, boundaryTotals) {
+  let numerator = 0;
+  let denominator = 0;
+  let laterPoints = player.points;
+  let laterGames = player.gamesPlayed;
+  (boundaryTotals || []).forEach((totals, week) => {
+    const earlier = (totals && totals.get(player.playerId)) || { points: 0, gamesPlayed: 0 };
+    const weight = Math.pow(0.5, week);
+    numerator += weight * (laterPoints - earlier.points);
+    denominator += weight * (laterGames - earlier.gamesPlayed);
+    laterPoints = earlier.points;
+    laterGames = earlier.gamesPlayed;
+  });
+  const weight = Math.pow(0.5, (boundaryTotals || []).length);
+  numerator += weight * laterPoints;
+  denominator += weight * laterGames;
+  return denominator > 0 ? numerator / denominator : 0;
+}
+
+// How much a player's missed games so far count against them: their share
+// of their team's games played, with this many extra games "played" thrown
+// in as a prior. So a few missed games early in the season barely register,
+// while a player who keeps missing time is discounted more and more as the
+// season goes on (6 of 12 games gives 81%; 30 of 60 gives 63%).
+const AVAILABILITY_PRIOR_GAMES = 20;
+
+// Each pool team's *current* roster for the projection: every active player
+// (anyone traded away is gone from it, and anyone acquired is on it) with the
+// NHL team whose schedule they follow, and `rate` — the points they're
+// expected to add per game their team plays:
+//   - their recent points per game played this season (see recentPace),
+//     whatever they did before joining the team, so a player acquired in a
+//     trade projects on their own record;
+//   - times their availability (see AVAILABILITY_PRIOR_GAMES), unless
+//     they're injured right now, since that absence is covered by:
+//   - `returnDate`: someone on the injury report adds nothing until their
+//     listed return date (ESPN's estimate, via fetchInjuries), and is
+//     assumed healthy after it. A date that's already passed is stale and
+//     ignored.
+// Someone who hasn't played a game this season isn't counted until they do.
+// Players who moved mid-season list their NHL teams in order, so the last one
+// is the current team.
+async function fetchPoolProjectionPlayers(season, schedule) {
+  const [roster, boundaryTotals, injuries] = await Promise.all([
+    fetchAllPlayersForSeason(season),
+    fetchWeeklyBoundaryTotals(season, schedule.firstDate),
+    fetchInjuries(),
+  ]);
+  const rosterIndex = buildRosterIndex(roster);
+  const today = easternDate();
+
+  // Games each NHL team has played before today.
+  const gamesPlayedBy = new Map();
+  schedule.playing.forEach((teams, date) => {
+    if (date < today) teams.forEach((abbrev) => gamesPlayedBy.set(abbrev, (gamesPlayedBy.get(abbrev) || 0) + 1));
+  });
+
+  const result = new Map();
+  getTeamsForSeason(season).forEach((team) => {
+    const players = [];
+    team.players.forEach((entry) => {
+      const name = playerName(entry);
+      if (getTradeInfo(season, team.name, name).tradedOut) return;
+      const { player } = resolvePlayer(rosterIndex, name, playerTeamHint(entry), playerPositionHint(entry), playerIdHint(entry));
+      if (!player || !(player.gamesPlayed > 0)) return;
+      const nhlTeams = (player.teamAbbrevs || "").split(",");
+      const abbrev = nhlTeams[nhlTeams.length - 1] || playerTeamHint(entry);
+      if (!abbrev) return;
+
+      const injury = injuries.get(normalizePlayerName(name));
+      const returnDate = injury && injury.returnDate && injury.returnDate > today ? injury.returnDate : null;
+      const availability = injury
+        ? 1
+        : Math.min(1, (player.gamesPlayed + AVAILABILITY_PRIOR_GAMES) / ((gamesPlayedBy.get(abbrev) || 0) + AVAILABILITY_PRIOR_GAMES));
+      players.push({ abbrev, rate: recentPace(player, boundaryTotals) * availability, returnDate });
+    });
+    result.set(team.name, players);
+  });
+  return result;
+}
+
+// Every date from `start` through `end` ("YYYY-MM-DD", inclusive).
+function datesBetween(start, end) {
+  const dates = [];
+  for (let t = Date.parse(start); t <= Date.parse(end); t += DAY_MS) dates.push(new Date(t).toISOString().slice(0, 10));
+  return dates;
+}
+
+// Builds one dashed "projection" dataset per team: from the team's latest
+// point, each day adds the rate of every player on its current roster whose
+// NHL team has a game that day (and who isn't out injured), out to the last game of the regular season —
+// so it stays flat on a day nobody plays. Returns [] if the season's already
+// effectively over.
+function buildProjectionDatasets(entries, teamNames, realDatasets, schedule, poolPlayers) {
+  const baseTime = Date.parse(entries[0].date);
+  const lastDate = entries[entries.length - 1].date;
+  if (!(schedule.lastDate > lastDate)) return [];
+  const future = datesBetween(lastDate, schedule.lastDate).slice(1);
 
   return teamNames
     .map((team, i) => {
       const lastPoint = realDatasets[i].data[realDatasets[i].data.length - 1];
-      if (lastPoint.y == null) return null; // team has no value at the last displayed point
+      const players = poolPlayers.get(team);
+      if (lastPoint.y == null || !players) return null; // no value at the last displayed point, or not a current team
 
-      const points = entries
-        .map((e) => {
-          const found = e.standings.find((s) => s.team === team);
-          if (!found) return null;
-          const x = (new Date(e.date).getTime() - baseTime) / DAY_MS;
-          const w = Math.pow(0.5, (lastX - x) / PROJECTION_HALF_LIFE_DAYS);
-          return { x, y: found.score, w };
+      let gained = 0;
+      const data = [{ x: lastPoint.x, y: lastPoint.y }].concat(
+        future.map((date) => {
+          const teamsPlaying = schedule.playing.get(date);
+          if (teamsPlaying) {
+            players.forEach((p) => {
+              if (teamsPlaying.has(p.abbrev) && !(p.returnDate && date < p.returnDate)) gained += p.rate;
+            });
+          }
+          return { x: (Date.parse(date) - baseTime) / DAY_MS, y: Math.round(lastPoint.y + gained) };
         })
-        .filter(Boolean);
-      const fit = weightedLinearRegression(points);
-      if (!fit) return null;
-
-      const projected = Math.max(0, Math.round(fit.m * endX + fit.b));
+      );
 
       return {
         label: `${team} (Projected)`,
-        // Just the two endpoints — anchored to the real line's last
-        // point, out to the projected value at the season's end date.
-        data: [
-          { x: lastPoint.x, y: lastPoint.y },
-          { x: endX, y: projected },
-        ],
+        data,
         borderColor: realDatasets[i].baseColor,
         backgroundColor: realDatasets[i].baseColor,
         borderDash: [6, 4],
-        pointRadius: [0, 5],
+        // Only the end is marked, as on the real lines; hovering anywhere
+        // along it still picks out a day.
+        pointRadius: data.map((_, idx) => (idx === data.length - 1 ? 5 : 0)),
+        pointHitRadius: 8,
         tension: 0,
         isProjection: true,
         projectionFor: i,
@@ -646,7 +765,14 @@ async function renderChart(season) {
 
   let addedProjection = false;
   if (isCurrentSeason && rangeSelect.value === "projected") {
-    const projectionDatasets = buildProjectionDatasets(season, entries, teamNames, datasets);
+    // Needs the NHL schedule and the pool teams' current players; without
+    // either, only the real lines are shown.
+    const schedule = buildScheduleIndex(season);
+    const poolPlayers = schedule ? await fetchPoolProjectionPlayers(season, schedule).catch(() => null) : null;
+    if (myToken !== renderToken) return;
+    const projectionDatasets = schedule && poolPlayers
+      ? buildProjectionDatasets(entries, teamNames, datasets, schedule, poolPlayers)
+      : [];
     if (projectionDatasets.length) {
       addedProjection = true;
       datasets.push(...projectionDatasets);
@@ -842,6 +968,8 @@ async function initHistory() {
   } catch {
     historyData = {};
   }
+  // Optional: without it the projection assumes a game every day.
+  scheduleData = await fetch(SCHEDULE_URL).then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
   renderChart(seasonSelect.value);
   seasonSelect.addEventListener("change", () => renderChart(seasonSelect.value));

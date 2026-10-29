@@ -85,11 +85,6 @@ Each year's pool draft is a new entry in `TEAMS_BY_SEASON` inside
    any web image format works (PNG/JPG/SVG/etc.), and a missing or
    broken file just falls back to a plain dot rather than erroring.
 
-7. Optional: set `seasonEnd: "YYYY-MM-DD"` on the season object itself
-   (alongside `teams`/`trades`) if the default guess of April 15 is off
-   for that year. It's only used by the chart's "Show season-end
-   projection" option — see below.
-
 That's it — commit and push `teams.js`. Everything else picks the new
 season up automatically:
 
@@ -99,7 +94,10 @@ season up automatically:
 - Player stats for that season are fetched from the same season-agnostic
   NHL proxy that already handles every season — no backend changes.
 - Live injury status (from ESPN's public feed, since the NHL's own API
-  has no injury data) is season-agnostic too.
+  has no injury data) is season-agnostic too. The injury icon's tooltip
+  on the team page shows the status, injury type and ESPN's expected
+  return date (an estimate — often just a default of about a week when
+  nothing more specific has been reported).
 
 **What you don't need to touch:** `app.py` / `worker.js`, or anything in
 `standings.js` / `team.js` — all written to be season-agnostic already.
@@ -180,15 +178,37 @@ reduced motion, and in a tab that's opened in the background (nobody's
 there to see it, and the numbers would otherwise wait at 0).
 
 The range picker's fourth option, "Projected", shows the full season
-(like "Season") plus a dashed line per team: a linear trend fit
-through that team's season-to-date snapshots — weighted so recent
-snapshots count more than older ones (each day further back counts
-for half as much every 7 days) — extrapolated out to that season's
-`seasonEnd` (see step 7 above). It's a "if this recent pace holds"
-line, not a simulation — recomputed from scratch on every render,
-nothing is stored. This option (and the range picker as a whole) only
-appears for the current season — it's hidden for past seasons, which
-always just show their full history.
+(like "Season") plus a dashed line per team. It follows the NHL
+schedule and each team's *current* roster: from the team's latest
+point, every day adds the pace of each active player whose NHL team
+has a game that day, out to the last game of the regular season — so
+it's flat on a league-wide off day (Christmas, the All-Star break). A
+player's pace is their points per game played this season, including
+games before they joined the team (so a player acquired in a trade
+projects on their own record, and the player traded away adds nothing),
+weighted so recent games count more: games are grouped into weeks
+counting back from today and each week counts half as much as the one
+after it (the stats come from the stats API's `before=` filter, one
+request per week boundary — the same filter `app.py` and `worker.js`
+use for the live-points handoff). Someone who hasn't played a game
+this season adds nothing until they do. Two adjustments follow
+availability: a player on the injury report adds nothing until ESPN's
+listed return date (and is assumed healthy after it; a date that's
+already passed is ignored as stale), and everyone else's pace is scaled
+by how many of their team's games they've played, with 20 extra games
+"played" as a prior (6 of 12 gives 81%, 30 of 60 gives 63%) so an early
+absence barely registers. It's an "if this pace holds" line, not a
+simulation — future injuries and trades aren't modeled — recomputed
+from scratch on every render, nothing is stored. This option (and the
+range picker as a whole) only appears for the current season — it's
+hidden for past seasons, which always just show their full history.
+
+The schedule comes from `data/schedule.json` (every NHL team's
+regular-season game dates), written by `.github/scripts/fetch-schedule.mjs`
+as a step of the same daily workflow — the browser can't call the NHL's
+schedule API itself, and games do get postponed, so it's re-read daily.
+It's best effort: if that step fails the last good file stays in place,
+and if the file's missing, Projected shows just the real lines.
 
 ## Architecture notes
 
