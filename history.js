@@ -12,6 +12,10 @@ const chartHint = document.getElementById("chart-hint");
 const rangeSelect = document.getElementById("chart-range");
 const projectionNote = document.getElementById("projection-note");
 const chartControls = document.getElementById("chart-controls");
+const chartZoom = document.getElementById("chart-zoom");
+const zoomInBtn = document.getElementById("zoom-in");
+const zoomOutBtn = document.getElementById("zoom-out");
+const zoomResetBtn = document.getElementById("zoom-reset");
 
 // Days to look back from the most recent snapshot for each range option
 // (null = no limit, show the whole season — "projected" is the same
@@ -24,6 +28,42 @@ const RANGE_DAYS = { week: 7, month: 30, season: null, projected: null };
 let historyData = null;
 let chart = null;
 let renderToken = 0;
+
+// ---- Zoom -----------------------------------------------------------------
+// chartjs-plugin-zoom (with hammerjs for touch) does the work; this is the
+// buttons around it. The zoom survives the chart's polling updates, but a
+// different season or range has different axes, so it starts fresh then.
+const ZOOM_STEP = 1.25;
+let chartViewKey = null;
+
+function zoomPluginLoaded() {
+  try {
+    return Boolean(Chart.registry.plugins.get("zoom"));
+  } catch {
+    return false;
+  }
+}
+
+function syncZoomButtons() {
+  zoomResetBtn.disabled = !(chart && chart.isZoomedOrPanned && chart.isZoomedOrPanned());
+}
+
+function zoomChart(factor) {
+  if (!chart || !chart.zoom) return;
+  chart.zoom(factor);
+  syncZoomButtons();
+}
+
+function resetChartZoom() {
+  if (!chart || !chart.resetZoom) return;
+  chart.resetZoom();
+  syncZoomButtons();
+}
+
+zoomInBtn.addEventListener("click", () => zoomChart(ZOOM_STEP));
+zoomOutBtn.addEventListener("click", () => zoomChart(1 / ZOOM_STEP));
+zoomResetBtn.addEventListener("click", resetChartZoom);
+chartCanvas.addEventListener("dblclick", resetChartZoom);
 
 // ---- Table <-> chart hover linking --------------------------------------
 // Hovering a standings row (standings.js) or a line here highlights that
@@ -606,6 +646,31 @@ const introPlugin = {
   },
 };
 
+// Chart.js clips each dataset (points included) to the plot area, so a head
+// logo sitting at or past an edge of a zoomed or panned chart is drawn cut
+// off. This paints the whole logo over it again, from the same spot, for any
+// head whose logo crosses an edge. A head farther out than that is simply
+// off the chart, so nothing is drawn for it.
+const headEdgePlugin = {
+  id: "headEdge",
+  afterDatasetsDraw(c) {
+    if (intro) return; // the intro draws its own heads
+    const { left, right, top, bottom } = c.chartArea;
+    const half = LOGO_SIZE / 2;
+    c.data.datasets.forEach((ds, i) => {
+      if (ds.isProjection || !c.isDatasetVisible(i) || !ds.pointStyle) return;
+      const lastIndex = ds.data.length - 1;
+      const logo = ds.pointStyle[lastIndex];
+      const head = c.getDatasetMeta(i).data[lastIndex];
+      if (!(logo instanceof Image) || !head || !Number.isFinite(head.x) || !Number.isFinite(head.y)) return;
+      const inside = head.x - half >= left && head.x + half <= right && head.y - half >= top && head.y + half <= bottom;
+      const offChart = head.x + half < left || head.x - half > right || head.y + half < top || head.y - half > bottom;
+      if (inside || offChart) return;
+      c.ctx.drawImage(logo, head.x - half, head.y - half, LOGO_SIZE, LOGO_SIZE);
+    });
+  },
+};
+
 // Chart.js has nothing to animate here (its own creation animation is
 // switched off), so the intro just asks it to repaint every frame.
 function runIntro(c) {
@@ -699,6 +764,7 @@ async function renderChart(season) {
   if (entries.length < 2) {
     chartCanvas.hidden = true;
     chartHint.hidden = true;
+    chartZoom.hidden = true;
     projectionNote.hidden = true;
     chartStatus.hidden = false;
     chartStatus.classList.remove("loading-pulse");
@@ -712,6 +778,7 @@ async function renderChart(season) {
     if (chart) {
       chart.destroy();
       chart = null;
+      chartViewKey = null;
     }
     return;
   }
@@ -782,6 +849,8 @@ async function renderChart(season) {
   chartStatus.hidden = true;
   chartCanvas.hidden = false;
   chartHint.hidden = false;
+  // No buttons if the zoom plugin didn't load (the chart just isn't zoomable).
+  chartZoom.hidden = !zoomPluginLoaded();
   projectionNote.hidden = !addedProjection;
 
   // The trade deadline's line (the plugin skips it when it's outside the
@@ -831,10 +900,18 @@ async function renderChart(season) {
     chart.options.scales.x.ticks.color = chromeColors.muted;
     chart.options.scales.x.ticks.callback = (value) => formatDayOffset(baseTime, value);
     chart.options.scales.x.grid.color = chromeColors.border;
-    chart.options.scales.y.min = yAxisMin(rangeSelect.value);
+    const viewKey = `${season}|${rangeSelect.value}`;
+    if (viewKey !== chartViewKey && chart.resetZoom) chart.resetZoom("none");
+    chartViewKey = viewKey;
+    // The plugin zooms by setting the scale's min/max, so leave the bottom
+    // of the axis alone while zoomed.
+    if (!(chart.isZoomedOrPanned && chart.isZoomedOrPanned())) {
+      chart.options.scales.y.min = yAxisMin(rangeSelect.value);
+    }
     chart.options.scales.y.ticks.color = chromeColors.muted;
     chart.options.scales.y.grid.color = chromeColors.border;
     chart.update();
+    syncZoomButtons();
     if (highlightedTeam) applyLineHighlight();
     return;
   }
@@ -855,7 +932,7 @@ async function renderChart(season) {
   chart = new Chart(chartCanvas, {
     type: "line",
     data: { datasets },
-    plugins: [introPlugin, tradeDeadlinePlugin],
+    plugins: [introPlugin, tradeDeadlinePlugin, headEdgePlugin],
     options: {
       // Chart.js's own creation animation grows every point up from the
       // axis — off here (the intro replaces it, and a chart re-created
@@ -871,6 +948,21 @@ async function renderChart(season) {
       onHover: onChartHover,
       plugins: {
         tradeDeadline: deadlineOpts,
+        // Never zooms or pans past the data, and the wheel needs Ctrl (a
+        // trackpad pinch counts) so scrolling the page over the chart still works.
+        zoom: {
+          limits: {
+            x: { min: "original", max: "original", minRange: 1 },
+            y: { min: "original", max: "original", minRange: 5 },
+          },
+          pan: { enabled: true, mode: "xy", onPanComplete: syncZoomButtons },
+          zoom: {
+            wheel: { enabled: true, modifierKey: "ctrl" },
+            pinch: { enabled: true },
+            mode: "xy",
+            onZoomComplete: syncZoomButtons,
+          },
+        },
         tooltip: {
           callbacks: {
             title: (items) => (items.length ? formatDayOffset(baseTime, items[0].parsed.x) : ""),
@@ -946,7 +1038,9 @@ async function renderChart(season) {
             scale.ticks = scale.ticks.filter((t) => t.value >= 0);
             scale.min = 0;
           },
-          ticks: { color: chromeColors.muted, precision: 0 },
+          // Zooming leaves the axis ends at fractional scores — those two
+          // edge ticks get no label rather than "229.4".
+          ticks: { color: chromeColors.muted, precision: 0, callback: (value) => (Number.isInteger(value) ? value : "") },
           grid: { color: chromeColors.border },
         },
       },
@@ -956,6 +1050,8 @@ async function renderChart(season) {
   // Back to Chart.js's default animation settings for everything after
   // this first paint (range changes, polls and legend clicks glide).
   chart.options.animation = {};
+  chartViewKey = `${season}|${rangeSelect.value}`;
+  syncZoomButtons();
   if (intro) {
     intro.start = performance.now();
     runIntro(chart);

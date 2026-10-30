@@ -12,7 +12,7 @@ browsing/filtering NHL skater stats when drafting.
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
 | `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season (the roster is listed highest cost first, and anyone traded away shows "—" in their usual place). The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
-| `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
+| `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. A collapsible "Players playing tonight" header at the top counts each pool team's players in today's games (open or closed is remembered). Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
 Shared logic lives in `common.js` (NHL data fetching + caching) and
@@ -120,6 +120,15 @@ To compare just some teams, use the legend: click a team to show only
 its line, then click more teams to add them (click a shown team to
 remove it). Clicking the last team left shows everyone again. A team's
 dashed projection, if any, follows it.
+
+The chart zooms and pans (the
+[chartjs-plugin-zoom](https://www.chartjs.org/chartjs-plugin-zoom/) plugin,
+with hammerjs for touch): the +/− buttons, Ctrl + scroll (or a trackpad
+pinch) and a two-finger pinch zoom; dragging pans; Reset or a double-click
+puts it back. It never goes past the data, stays put through the chart's
+polling updates, and starts over when the season or range changes. If the
+plugin's scripts fail to load, the buttons are hidden and the chart just
+isn't zoomable.
 
 That file is written automatically by
 `.github/workflows/snapshot-standings.yml`, which runs once a day

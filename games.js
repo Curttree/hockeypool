@@ -7,6 +7,22 @@
 
 const statusEl = document.getElementById("status");
 const gamesEl = document.getElementById("games");
+const tonightEl = document.getElementById("tonight");
+
+// Whether the "tonight" summary is expanded, remembered between visits
+// (open unless it was last collapsed). It's redrawn on every poll, so the
+// state has to live outside the element.
+const TONIGHT_OPEN_KEY = "nhl-points-games-tonight-open";
+let tonightOpen = true;
+try {
+  tonightOpen = localStorage.getItem(TONIGHT_OPEN_KEY) !== "false";
+} catch (e) {}
+tonightEl.addEventListener("toggle", () => {
+  tonightOpen = tonightEl.open;
+  try {
+    localStorage.setItem(TONIGHT_OPEN_KEY, String(tonightOpen));
+  } catch (e) {}
+});
 
 // Same cadence as the Standings/Team pages. Unlike those, the data here
 // really is refetched each tick (the proxy only caches for ~30s), but only
@@ -329,6 +345,33 @@ function gameCard(season, { game, players }, currentPoints) {
     </section>`;
 }
 
+// How many players each pool team has in today's games (finished ones
+// included), most first. A player is counted once per team that owns them.
+function renderTonight(season, days) {
+  const today = days[0];
+  if (!today || !today.entries.length) {
+    tonightEl.hidden = true;
+    return;
+  }
+
+  const playing = new Map(getTeamsForSeason(season).map((team) => [team.name, new Set()]));
+  today.entries.forEach(({ players }) => {
+    players.forEach((p) => p.poolTeams.forEach((t) => playing.has(t) && playing.get(t).add(p.playerId)));
+  });
+  const counts = [...playing].map(([name, ids]) => ({ name, count: ids.size }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const total = counts.reduce((sum, c) => sum + c.count, 0);
+
+  tonightEl.innerHTML = `
+    <summary>Players playing tonight <span>${total} across ${today.entries.length} ${today.entries.length === 1 ? "game" : "games"}</span></summary>
+    <ul class="tonight-list">
+      ${counts.map((c) => `
+        <li class="${c.count ? "" : "is-none"}">${ownerIcon(season, c.name)}<span class="tonight-name">${esc(c.name)}</span><strong>${c.count}</strong></li>`).join("")}
+    </ul>`;
+  tonightEl.open = tonightOpen;
+  tonightEl.hidden = false;
+}
+
 // `trackFlashes` is false for a theme-change redraw, which reuses the last
 // fetched data — nothing new happened, so nothing should flash.
 function render(season, days, trackFlashes) {
@@ -341,6 +384,7 @@ function render(season, days, trackFlashes) {
     `).join("");
 
   gamesEl.innerHTML = html;
+  renderTonight(season, days);
   if (trackFlashes) previousPoints = currentPoints;
 
   statusEl.classList.remove("loading-pulse");

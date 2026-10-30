@@ -72,26 +72,35 @@
     <section class="chart-section">
       <div class="selected-header">
         <h2>Standings Over Time</h2>
-        <div class="controls" id="chart-controls">
-          <label for="chart-range">Range</label>
-          <select id="chart-range">
-            <option value="week" selected>1 Week</option>
-            <option value="month">1 Month</option>
-            <option value="season">Season</option>
-            <option value="projected">Projected</option>
-          </select>
+        <div class="chart-tools">
+          <div class="zoom-controls" id="chart-zoom" hidden>
+            <button type="button" id="zoom-out" aria-label="Zoom out" title="Zoom out">&minus;</button>
+            <button type="button" id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
+            <button type="button" id="zoom-reset" title="Reset zoom" disabled>Reset</button>
+          </div>
+          <div class="controls" id="chart-controls">
+            <label for="chart-range">Range</label>
+            <select id="chart-range">
+              <option value="week" selected>1 Week</option>
+              <option value="month">1 Month</option>
+              <option value="season">Season</option>
+              <option value="projected">Projected</option>
+            </select>
+          </div>
         </div>
       </div>
       <p id="chart-status" class="muted-note loading-pulse">Loading history…</p>
       <div class="chart-container">
         <canvas id="standings-chart" hidden></canvas>
       </div>
-      <p id="chart-hint" class="muted-note" hidden>Click a team in the legend to show only its line, then click more teams to compare them. Click the last team left to show everyone again.</p>
+      <p id="chart-hint" class="muted-note" hidden>Click a team in the legend to show only its line, then click more teams to compare them. Click the last team left to show everyone again. Zoom with the buttons, Ctrl + scroll or a pinch, drag to pan, and double-click to reset.</p>
       <p id="projection-note" class="muted-note" hidden>Dashed lines project each team's full-season pace.</p>
     </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <script src="common.js"></script>
   <script src="teams.js"></script>
   <script src="deadline.js"></script>

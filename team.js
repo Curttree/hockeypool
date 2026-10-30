@@ -101,6 +101,14 @@ function formatSeasonLabel(seasonId) {
 const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
 
+// The injury icon: two crossed bandages. The one underneath is masked with a
+// gap around the one on top (rather than filled with a background color) so
+// it looks right on any row color.
+// (The mask goes on an unrotated wrapper: its coordinates follow the element
+// it's applied to, so on the rotated group itself the gap would turn too.)
+const BANDAGE_SHAPE = `<rect x="1.5" y="8.8" width="21" height="6.4" rx="3.2"/>`;
+const BANDAGE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><mask id="bandage-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff" stroke="none"/><g transform="rotate(45 12 12)" fill="#000" stroke="#000" stroke-width="3.6">${BANDAGE_SHAPE}</g></mask><g mask="url(#bandage-gap)"><g transform="rotate(-45 12 12)">${BANDAGE_SHAPE}</g></g><g transform="rotate(45 12 12)">${BANDAGE_SHAPE}<path d="M7.2 8.8v6.4M16.8 8.8v6.4"/></g></svg>`;
+
 // Each player's credited points/goals/assists as of the last render —
 // compared against on the next one so a row whose score just went up can
 // get a brief goal- or assist-light flash and count its score up (see
@@ -423,7 +431,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
     // new goal since the last poll, else it was only an assist.
     const lightClass = !scoreIncreased ? "" : credited.goals > prev.goals ? "goal-light" : "assist-light";
     const injuryTitle = (injuryLabel || "Injured").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    const injuryIcon = injured ? `<span class="injury-icon" title="${injuryTitle}">i</span>` : "";
+    const injuryIcon = injured && !tradedOut ?`<span class="injury-icon" title="${injuryTitle}">${BANDAGE_ICON}</span>` : "";
     const acquiredBadge = tradedIn
       ? `<span class="traded-badge" title="Acquired via trade — stats before joining this team don't count">Acquired</span>`
       : "";
@@ -433,7 +441,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
     // Always the full name as written in teams.js — consistent for every
     // row, and the spelling people know (the NHL's own can differ, e.g.
     // "Nicholas Paul", or be abbreviated in live data, e.g. "A. Barkov").
-    const displayName = name;
+    const displayName = tradedOut ? `<span class="traded-name">${name}</span>` : name;
     // A traded-away player no longer counts toward the team's cost (see
     // computeTeamCost), so there's no number to show for them.
     const costCell = tradedOut
@@ -450,6 +458,9 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
 
     const tr = document.createElement("tr");
     if (scoreIncreased) tr.classList.add("score-flash", lightClass);
+    // Traded away: no injury status (icon or bar), whether or not they're hurt.
+    if (tradedOut) tr.classList.add("is-traded-out");
+    else if (injured) tr.classList.add("is-injured");
     if (animateIn) {
       tr.classList.add("row-in");
       tr.style.setProperty("--i", index);

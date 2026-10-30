@@ -8,6 +8,7 @@
   --accent: #4ea1ff;
   --row-alt: #1c2029;
   --row-hover: #232838;
+  --injured: #f0b429;
   --danger: #ff5c5c;
   --danger-hover-bg: rgba(255, 107, 107, 0.1);
   --danger-hover-text: #ff6b6b;
@@ -24,6 +25,7 @@
   --accent: #1d6fd6;
   --row-alt: #f0f2f5;
   --row-hover: #e8ecf1;
+  --injured: #d99100;
   --danger: #d64545;
   --danger-hover-bg: rgba(214, 69, 69, 0.1);
   --danger-hover-text: #c23a3a;
@@ -678,22 +680,31 @@ tbody tr:hover { background: var(--row-hover); }
   padding-right: clamp(6px, 2vw, 14px);
 }
 
+/* Team page rows: an injured player gets an amber bar down the row's left
+   edge; a traded-away one is faded, with a line through the name — but not
+   the score, which is still theirs to keep. */
+#team-table tr.is-injured > td:first-child {
+  box-shadow: inset 3px 0 0 var(--injured);
+}
+#team-table tr.is-traded-out > td:not(.score) {
+  opacity: 0.5;
+}
+#team-table .traded-name {
+  text-decoration: line-through;
+}
+
 .injury-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   margin-left: 5px;
-  border-radius: 50%;
-  border: 1px solid var(--muted);
   color: var(--muted);
-  font-size: 0.65rem;
-  font-style: italic;
-  font-weight: 700;
   cursor: help;
   vertical-align: middle;
 }
+.injury-icon svg { display: block; width: 100%; height: 100%; }
 
 /* Last season's team, shown before a player's first game this season. */
 .prev-team {
@@ -826,13 +837,54 @@ tbody tr:hover { background: var(--row-hover); }
 }
 
 #season-controls[hidden],
-#chart-controls[hidden] {
+#chart-controls[hidden],
+#chart-zoom[hidden] {
   display: none;
+}
+
+.chart-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.zoom-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.zoom-controls button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chart-section h2 {
   font-size: 1rem;
   margin: 0;
+}
+
+/* hammerjs (the zoom plugin's touch support) sets touch-action: none on the
+   canvas, which would stop a phone from scrolling the page with a finger
+   that happens to start on the chart. Vertical swipes scroll, horizontal
+   ones pan, and a pinch zooms. */
+#standings-chart {
+  touch-action: pan-y !important;
 }
 
 .chart-container {
@@ -886,7 +938,7 @@ tbody tr:hover { background: var(--row-hover); }
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
-/* The injury icon is only 14px — give it a bigger invisible tap target. */
+/* The injury icon is only 18px — give it a bigger invisible tap target. */
 .injury-icon { position: relative; }
 .injury-icon::after {
   content: "";
@@ -1096,6 +1148,41 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
   font-size: 0.85rem;
   font-weight: 400;
 }
+
+.tonight {
+  margin-bottom: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.tonight[hidden] { display: none; }
+.tonight summary {
+  padding: 12px 16px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tonight summary span {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+.tonight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 8px;
+}
+.tonight-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.tonight-list li.is-none { color: var(--muted); }
+.tonight-list .owner-icon { margin-right: 0; }
+.tonight-name { flex: 1; }
 
 .game-card {
   margin-bottom: 16px;
