@@ -76,7 +76,8 @@ const TEAMS_BY_SEASON = {
         logo: "images/curtis.png",
         players: ["Macklin Celebrini", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
           "Kirill Marchenko", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
-          "Michael Misa", "Pierre-Luc Dubois", { name: "Nick Paul", id: 8477426 }, "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson"
+          "Michael Misa", "Pierre-Luc Dubois", { name: "Nick Paul", id: 8477426 }, "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson",
+          "Easton Cowan"
         ]
     },
     {
@@ -142,6 +143,13 @@ const TEAMS_BY_SEASON = {
         team: "Hannah",
         playerOut: { name: "Vladimir Tarasenko", points: 0, goals: 0, assists: 0 },
         playerIn: { name: "JJ Peterka", points: 9, goals: 4, assists: 5 },
+      },
+      // Curtis sends Zach Hyman out for Easton Cowan (season totals at the
+      // time of the trade, 2026-10-30).
+      {
+        team: "Curtis",
+        playerOut: { name: "Zach Hyman", points: 1, goals: 1, assists: 0 },
+        playerIn: { name: "Easton Cowan", points: 14, goals: 6, assists: 8 },
       },
     ],
     tradeDeadline: "2027-03-01T15:00:00-05:00",
