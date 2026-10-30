@@ -78,6 +78,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/standings-history.json data/player-points.json data/schedule.json
+          git add data/standings-history.json data/player-points.json data/schedule.json data/weekly-awards.json data/injury-history.json
           git diff --cached --quiet || git commit -m "Snapshot standings for $(date -u -d yesterday +%Y-%m-%d)"
           git push

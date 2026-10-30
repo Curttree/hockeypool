@@ -13,6 +13,7 @@ browsing/filtering NHL skater stats when drafting.
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
 | `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season (the roster is listed highest cost first, and anyone traded away shows "—" in their usual place). The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
 | `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. A collapsible "Players playing tonight" header at the top counts each pool team's players in today's games (open or closed is remembered). Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
+| `awards.html` | Awards — weekly awards for each finished week, with arrows to browse earlier weeks (see "Weekly awards" below) |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
 
 Shared logic lives in `common.js` (NHL data fetching + caching) and
@@ -218,6 +219,37 @@ as a step of the same daily workflow — the browser can't call the NHL's
 schedule API itself, and games do get postponed, so it's re-read daily.
 It's best effort: if that step fails the last good file stays in place,
 and if the file's missing, Projected shows just the real lines.
+
+## Weekly awards
+
+The Awards page (`awards.html` / `awards.js`, "Awards" in the title bar
+between Games and Players) shows awards for each finished week, with arrows
+to browse earlier ones. A week runs
+Sunday to Saturday and is closed by the Sunday-morning snapshot. The
+awards: Team of the week (most points gained), Biggest mover (most rank
+places gained), Player of the week (most points; goals break a tie),
+Bargain bin (most points per point of cost, at least 3 points), Cap anchor
+(lowest points per point of cost among players costing 50+ who played at
+least 2 games), Trade of the week (the week's trade where the player who
+came in out-scored the one who left, since the trade) and Trainer's room
+(most injured players on a roster). Ties share an award, and one nobody
+qualifies for is left out of the week.
+
+They're worked out once, when the week ends: on a Saturday snapshot the
+nightly job (`snapshot-standings.mjs`) loads the Awards page and calls
+`buildWeeklyAwards` there — it has the rosters, trades and injury report — and
+adds the result to `data/weekly-awards.json`, so a past week's awards
+never change afterwards. A player's week is their points between the
+stats API's totals before that Sunday and before the next one (credit
+for a player acquired in a trade counts from the trade, same as the
+standings). Trainer's room uses the injury report of the day the week closes, which
+the same nightly job saves — for the pool's players only, the last 14 days —
+in `data/injury-history.json`. Nothing else records past reports, so weeks 1-4
+(before it started) were pieced together from the Internet Archive's
+captures of ESPN's injury feed and page, treating a player as hurt on a
+date if a capture on or after it lists them with an injury reported by then,
+or an earlier capture gave a return date after it. Trades need a `date`
+(YYYY-MM-DD) in `teams.js` to be considered for Trade of the week.
 
 ## Architecture notes
 

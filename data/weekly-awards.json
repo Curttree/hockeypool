@@ -1,0 +1,435 @@
+{
+  "20262027": [
+    {
+      "week": 1,
+      "weekStart": "2026-09-27",
+      "weekEnd": "2026-10-03",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Curtis",
+            "Jordan"
+          ],
+          "points": 32,
+          "next": [
+            {
+              "team": "Gayle",
+              "points": 31
+            },
+            {
+              "team": "Luke",
+              "points": 31
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Connor McDavid",
+              "team": "Jordan"
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Gayle"
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Luke"
+            }
+          ],
+          "points": 9,
+          "goals": 2,
+          "assists": 7,
+          "next": [
+            {
+              "player": "Evan Bouchard",
+              "team": "Hannah",
+              "value": 8
+            },
+            {
+              "player": "Leon Draisaitl",
+              "team": "Curtis",
+              "value": 5
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Marco Rossi",
+              "team": "Luke"
+            }
+          ],
+          "points": 4,
+          "cost": 35,
+          "next": [
+            {
+              "player": "Evan Bouchard",
+              "team": "Hannah",
+              "value": 8
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Jordan",
+              "value": 9
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Juraj Slafkovský",
+              "team": "Gayle"
+            }
+          ],
+          "points": 0,
+          "cost": 73,
+          "games": 2
+        },
+        "trainersRoom": {
+          "teams": [
+            "Luke"
+          ],
+          "count": 3,
+          "players": [
+            "Connor Bedard",
+            "Brad Marchand",
+            "Justin Brazeau"
+          ]
+        }
+      }
+    },
+    {
+      "week": 2,
+      "weekStart": "2026-10-04",
+      "weekEnd": "2026-10-10",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Curtis",
+            "Hannah"
+          ],
+          "points": 55,
+          "next": [
+            {
+              "team": "Rick",
+              "points": 49
+            },
+            {
+              "team": "Anmol",
+              "points": 42
+            }
+          ]
+        },
+        "biggestMover": {
+          "gain": 3,
+          "teams": [
+            {
+              "team": "Hannah",
+              "from": 5,
+              "to": 2
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Auston Matthews",
+              "team": "Curtis"
+            },
+            {
+              "player": "Auston Matthews",
+              "team": "Anmol"
+            },
+            {
+              "player": "Auston Matthews",
+              "team": "Hannah"
+            },
+            {
+              "player": "Auston Matthews",
+              "team": "Rick"
+            }
+          ],
+          "points": 9,
+          "goals": 3,
+          "assists": 6,
+          "next": [
+            {
+              "player": "William Nylander",
+              "team": "Curtis",
+              "value": 8
+            },
+            {
+              "player": "Kyle Connor",
+              "team": "Anmol",
+              "value": 6
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Michael Brandsegg-Nygård",
+              "team": "Anmol"
+            }
+          ],
+          "points": 3,
+          "cost": 1,
+          "next": [
+            {
+              "player": "Berkly Catton",
+              "team": "Jordan",
+              "value": 4
+            },
+            {
+              "player": "Nick Paul",
+              "team": "Curtis",
+              "value": 3
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Sidney Crosby",
+              "team": "Hannah"
+            },
+            {
+              "player": "Sidney Crosby",
+              "team": "Luke"
+            }
+          ],
+          "points": 0,
+          "cost": 74,
+          "games": 4
+        },
+        "trainersRoom": {
+          "teams": [
+            "Anmol",
+            "Luke"
+          ],
+          "count": 3,
+          "players": []
+        }
+      }
+    },
+    {
+      "week": 3,
+      "weekStart": "2026-10-11",
+      "weekEnd": "2026-10-17",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Rick"
+          ],
+          "points": 75,
+          "next": [
+            {
+              "team": "Curtis",
+              "points": 67
+            },
+            {
+              "team": "Gayle",
+              "points": 51
+            }
+          ]
+        },
+        "biggestMover": {
+          "gain": 2,
+          "teams": [
+            {
+              "team": "Anmol",
+              "from": 7,
+              "to": 5
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Brady Tkachuk",
+              "team": "Curtis"
+            },
+            {
+              "player": "Brady Tkachuk",
+              "team": "Rick"
+            }
+          ],
+          "points": 10,
+          "goals": 6,
+          "assists": 4,
+          "next": [
+            {
+              "player": "Connor McDavid",
+              "team": "Jordan",
+              "value": 10
+            },
+            {
+              "player": "Matthew Tkachuk",
+              "team": "Curtis",
+              "value": 10
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Michael Brandsegg-Nygård",
+              "team": "Anmol"
+            }
+          ],
+          "points": 3,
+          "cost": 1,
+          "next": [
+            {
+              "player": "Ilya Protas",
+              "team": "Rick",
+              "value": 4
+            },
+            {
+              "player": "William Karlsson",
+              "team": "Curtis",
+              "value": 4
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "William Nylander",
+              "team": "Curtis"
+            },
+            {
+              "player": "William Nylander",
+              "team": "Hannah"
+            },
+            {
+              "player": "William Nylander",
+              "team": "Gayle"
+            },
+            {
+              "player": "William Nylander",
+              "team": "Rick"
+            }
+          ],
+          "points": 1,
+          "cost": 79,
+          "games": 3
+        },
+        "trainersRoom": {
+          "teams": [
+            "Luke",
+            "Rick"
+          ],
+          "count": 4,
+          "players": []
+        }
+      }
+    },
+    {
+      "week": 4,
+      "weekStart": "2026-10-18",
+      "weekEnd": "2026-10-24",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Curtis"
+          ],
+          "points": 56,
+          "next": [
+            {
+              "team": "Jordan",
+              "points": 51
+            },
+            {
+              "team": "Rick",
+              "points": 50
+            }
+          ]
+        },
+        "biggestMover": {
+          "gain": 1,
+          "teams": [
+            {
+              "team": "Jordan",
+              "from": 6,
+              "to": 5
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Connor McDavid",
+              "team": "Jordan"
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Gayle"
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Luke"
+            }
+          ],
+          "points": 10,
+          "goals": 2,
+          "assists": 8,
+          "next": [
+            {
+              "player": "Leon Draisaitl",
+              "team": "Curtis",
+              "value": 9
+            },
+            {
+              "player": "William Nylander",
+              "team": "Curtis",
+              "value": 6
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Berkly Catton",
+              "team": "Jordan"
+            }
+          ],
+          "points": 3,
+          "cost": 17,
+          "next": [
+            {
+              "player": "Jack Roslovic",
+              "team": "Jordan",
+              "value": 6
+            },
+            {
+              "player": "Matvei Gridin",
+              "team": "Luke",
+              "value": 3
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Filip Forsberg",
+              "team": "Gayle"
+            }
+          ],
+          "points": 0,
+          "cost": 75,
+          "games": 2
+        },
+        "trainersRoom": {
+          "teams": [
+            "Anmol",
+            "Luke"
+          ],
+          "count": 3,
+          "players": []
+        }
+      }
+    }
+  ]
+}

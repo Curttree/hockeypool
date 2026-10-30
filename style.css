@@ -836,6 +836,151 @@ tbody tr:hover { background: var(--row-hover); }
   margin-top: 32px;
 }
 
+/* ---- Awards page (awards.js) ---- */
+.awards[hidden] { display: none; }
+.aw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.aw-title { text-align: center; }
+.aw-title h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+.aw-title span {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.aw-head button {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.aw-head button:hover:not(:disabled) { border-color: var(--accent); }
+.aw-head button:disabled { opacity: 0.35; cursor: not-allowed; }
+/* A pill for every week, to jump straight to one. */
+.aw-weeks {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.aw-chip {
+  min-width: 36px;
+  padding: 5px 12px;
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.aw-chip:hover { border-color: var(--accent); color: var(--text); }
+.aw-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+.aw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+/* An odd one out takes the whole last row rather than leaving a hole. */
+.aw-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.aw-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.aw-kind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.aw-kind svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--injured);
+}
+.aw-winner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.aw-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.aw-owners {
+  display: inline-flex;
+  gap: 4px;
+}
+.aw-owners .aw-icon {
+  width: 30px;
+  height: 30px;
+}
+.aw-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--row-alt);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.aw-amp { color: var(--muted); font-weight: 400; }
+.aw-big { font-size: 1rem; }
+.aw-big em {
+  color: var(--accent);
+  font-size: 1.9rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.aw-context {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.aw-empty { margin: 0; color: var(--muted); }
+.aw-foot {
+  margin: 18px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 #season-controls[hidden],
 #chart-controls[hidden],
 #chart-zoom[hidden] {

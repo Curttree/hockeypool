@@ -30,9 +30,12 @@
 //   entry is one team's side of a trade:
 //     {
 //       team,
+//       date,
 //       playerOut: { name, points, goals, assists },
 //       playerIn: { name, points, goals, assists },
 //     }
+//   `date` is the trade's day (YYYY-MM-DD); only the weekly awards use it
+//   (to find the week's trades — see awards.js).
 //   All three numbers are the named player's *actual* season totals at
 //   the moment of the trade, entered by hand (there's no API for this) —
 //   and should satisfy points = goals + assists, same as any real stat
@@ -133,6 +136,7 @@ const TEAMS_BY_SEASON = {
       // their season totals at the time of the trade (2026-10-27).
       {
         team: "Rick",
+        date: "2026-10-27",
         playerOut: { name: "Zach Hyman", points: 1, goals: 1, assists: 0 },
         playerIn: { name: "Vasily Podkolzin", points: 13, goals: 8, assists: 5 },
       },
@@ -141,6 +145,7 @@ const TEAMS_BY_SEASON = {
       // season, so his line is empty.
       {
         team: "Hannah",
+        date: "2026-10-29",
         playerOut: { name: "Vladimir Tarasenko", points: 0, goals: 0, assists: 0 },
         playerIn: { name: "JJ Peterka", points: 9, goals: 4, assists: 5 },
       },
@@ -148,6 +153,7 @@ const TEAMS_BY_SEASON = {
       // time of the trade, 2026-10-30).
       {
         team: "Curtis",
+        date: "2026-10-30",
         playerOut: { name: "Zach Hyman", points: 1, goals: 1, assists: 0 },
         playerIn: { name: "Easton Cowan", points: 14, goals: 6, assists: 8 },
       },

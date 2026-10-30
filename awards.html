@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tremblay Hockey Pool - Awards</title>
+<script>
+  try {
+    if (localStorage.getItem("nhl-points-theme") === "light") document.documentElement.dataset.theme = "light";
+  } catch (e) {}
+</script>
+<meta name="description" content="Weekly awards for the Tremblay Hockey Pool: team of the week, player of the week, biggest mover and more.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tremblay Hockey Pool">
+<meta property="og:title" content="Tremblay Hockey Pool - Awards">
+<meta property="og:description" content="Weekly awards for the Tremblay Hockey Pool: team of the week, player of the week, biggest mover and more.">
+<meta property="og:image" content="https://curttree.github.io/hockeypool/og-image.png">
+<meta property="og:url" content="https://curttree.github.io/hockeypool/awards.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tremblay Hockey Pool - Awards">
+<meta name="twitter:description" content="Weekly awards for the Tremblay Hockey Pool: team of the week, player of the week, biggest mover and more.">
+<meta name="twitter:image" content="https://curttree.github.io/hockeypool/og-image.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="site-nav-inner">
+      <span class="site-nav-brand">Tremblay Hockey Pool</span>
+      <div class="site-nav-links">
+        <a href="./">Standings</a>
+        <a href="games.html">Games</a>
+        <a href="awards.html">Awards</a>
+        <a href="players.html">Players</a>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <header>
+    <h1>Awards</h1>
+    <span class="season-label">Weekly, Sunday to Saturday</span>
+  </header>
+
+  <main>
+    <p id="status" class="loading-pulse">Loading awards…</p>
+    <section id="awards" class="awards" hidden></section>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="teams.js"></script>
+  <script src="deadline.js"></script>
+  <script src="awards.js"></script>
+</body>
+</html>
