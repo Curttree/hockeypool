@@ -74,10 +74,18 @@ jobs:
         working-directory: .github/scripts
         run: node fetch-schedule.mjs
 
+      # Saves last season's final totals as a static file the site loads
+      # instead of going through the Worker (see common.js). Only writes
+      # once per season; best effort like the schedule refresh.
+      - name: Save completed season file
+        continue-on-error: true
+        working-directory: .github/scripts
+        run: node save-completed-season.mjs
+
       - name: Commit snapshot if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/standings-history.json data/player-points.json data/schedule.json data/weekly-awards.json data/injury-history.json
+          git add data/standings-history.json data/player-points.json data/schedule.json data/weekly-awards.json data/injury-history.json data/season-*.json
           git diff --cached --quiet || git commit -m "Snapshot standings for $(date -u -d yesterday +%Y-%m-%d)"
           git push

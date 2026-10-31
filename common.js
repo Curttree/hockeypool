@@ -99,6 +99,7 @@ function fetchLive() {
       .then((data) => {
         if (data) {
           saveLastLive(data);
+          rememberLiveWindow(data);
           return data;
         }
         const last = loadLastLive();
@@ -219,20 +220,116 @@ function fetchAllPlayersForSeason(season) {
   return rosterRequests.get(key);
 }
 
+// ---- Completed seasons ---------------------------------------------------
+// A finished season's totals never change, so they're served as a static
+// file (data/season-<id>.json, trimmed to the fields the site uses — see
+// .github/scripts/snapshot-standings.mjs) instead of through the Worker,
+// which was the slowest request on every page load. They're also kept in
+// localStorage, so returning visitors skip even that download. Seasons
+// without a file (older ones the Players page can browse) still come
+// from the Worker.
+const SEASON_FILE_FIELDS = ["playerId", "skaterFullName", "lastName", "teamAbbrevs", "positionCode", "gamesPlayed", "goals", "assists", "points"];
+const SEASON_STORE_KEY_PREFIX = "nhl-points-season:v1:";
+
+function loadStoredSeason(season) {
+  try {
+    const raw = localStorage.getItem(SEASON_STORE_KEY_PREFIX + season);
+    const players = raw ? JSON.parse(raw) : null;
+    return Array.isArray(players) && players.length ? players : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeSeason(season, players) {
+  try {
+    const trimmed = players.map((p) => Object.fromEntries(SEASON_FILE_FIELDS.map((k) => [k, p[k]])));
+    localStorage.setItem(SEASON_STORE_KEY_PREFIX + season, JSON.stringify(trimmed));
+  } catch {
+    // ignore (storage full/disabled) — next visit just downloads it again
+  }
+}
+
+async function fetchCompletedSeason(season) {
+  const stored = loadStoredSeason(season);
+  if (stored) return stored;
+
+  let players = null;
+  try {
+    const res = await fetch(`data/season-${season}.json`);
+    if (res.ok) players = (await res.json()).players;
+  } catch {
+    // no file for this season — fall through to the Worker
+  }
+  if (!Array.isArray(players) || !players.length) {
+    players = await fetchSeasonTotals(season, null);
+  }
+  storeSeason(season, players);
+  return players;
+}
+
+// Season totals from the Worker, optionally only from games before
+// `before` (YYYY-MM-DD) — see fetchLive.
+async function fetchSeasonTotals(season, before) {
+  const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
+  if (before) params.set("before", before);
+  const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+  return players;
+}
+
+// ---- Speculative season-totals fetch --------------------------------------
+// Season totals for the season being played are fetched from before the
+// live window's first date (live.from), which normally means waiting for
+// /api/live first. To save that round trip, the last live window is
+// remembered across visits: if it's from today (Eastern), the totals are
+// requested in parallel with /api/live using its `from`, and only refetched
+// if the live response turns out to have moved on.
+const LIVE_WINDOW_KEY = "nhl-points-live-window";
+
+function rememberLiveWindow(live) {
+  try {
+    const dates = live.dates || [];
+    localStorage.setItem(LIVE_WINDOW_KEY, JSON.stringify({ from: live.from, currentDate: dates[dates.length - 1] || null }));
+  } catch {
+    // ignore (storage disabled)
+  }
+}
+
+function guessLiveFrom() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIVE_WINDOW_KEY) || "null");
+    return saved && saved.from && saved.currentDate === easternDate() ? saved.from : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadRosterForSeason(season) {
   if (isCompletedSeason(season)) {
-    const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
-    const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+    const players = await fetchCompletedSeason(season);
     setCachedRoster(season, players, LIVE_IDLE_MAX_MS); // final — nothing to refresh
     return players;
   }
 
+  // Everything this needs, requested at once: live points, the totals
+  // they're added to (on a guessed window — see guessLiveFrom), and last
+  // season's roster (full names for anyone only in the live data).
+  // (Prior season computed here rather than via teams.js's
+  // previousSeasonId — the Players page loads this file without teams.js.)
+  const priorSeason = `${parseInt(String(season).slice(0, 4), 10) - 1}${parseInt(String(season).slice(4), 10) - 1}`;
+  const guessedFrom = guessLiveFrom();
+  const knownPromise = fetchAllPlayersForSeason(priorSeason).catch(() => []);
+  const guessedTotals = guessedFrom ? fetchSeasonTotals(season, guessedFrom).catch(() => null) : null;
   const live = await fetchLive();
   const useLive = Boolean(live && live.season === String(season));
 
-  const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
-  if (useLive) params.set("before", live.from);
-  const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+  let players;
+  if (useLive) {
+    const guessed = guessedFrom === live.from ? await guessedTotals : null;
+    players = guessed || await fetchSeasonTotals(season, live.from);
+  } else {
+    players = await fetchSeasonTotals(season, null);
+  }
 
   if (!useLive) {
     // No games in the live window at all (e.g. the offseason) — totals
@@ -242,11 +339,7 @@ async function loadRosterForSeason(season) {
     return players;
   }
 
-  // Full names for anyone who only appears in the live data.
-  // (Computed here rather than via teams.js's previousSeasonId — the
-  // Players page loads this file without teams.js.)
-  const priorSeason = `${parseInt(String(season).slice(0, 4), 10) - 1}${parseInt(String(season).slice(4), 10) - 1}`;
-  const knownPlayers = await fetchAllPlayersForSeason(priorSeason).catch(() => []);
+  const knownPlayers = await knownPromise;
   const merged = mergeLivePlayers(players, live.players, knownPlayers);
   setCachedRoster(season, merged, liveRefreshMs(live));
   return merged;
