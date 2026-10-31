@@ -177,14 +177,41 @@ function buildScheduleIndex(season) {
 }
 
 // A player's pace weighs recent games more than old ones: games are bucketed
-// into weeks counting back from today, and each week counts half as much as
-// the one after it (a game's weight halves every 7 days), with everything
-// older than the last week lumped in at that weight. Stat totals "as of" a
-// date come from the stats API's `before` filter, one request per week
-// boundary — fetched once per date and kept, since a past date's totals
+// into weeks — the one since the most recent Monday, then each full Monday-
+// to-Sunday week before it — and each week counts half as much as the one
+// after it (a game's weight halves every week), with everything older than
+// the last week lumped in at that weight. The cut-offs are fixed Mondays
+// rather than "7, 14, 21… days ago" so the same totals stay valid all week.
+//
+// Totals "as of" each cut-off come from data/pace-totals.json, written by
+// the daily Action (.github/scripts/fetch-pace-totals.mjs — keep
+// PACE_WINDOWS and the Monday rule in sync with it). Only a cut-off missing
+// from that file (e.g. a Monday before the Action has run) is fetched from
+// the stats API via the Worker, once per date, since a past date's totals
 // never change.
 const PACE_WINDOW_DAYS = 7;
 const PACE_WINDOWS = 5;
+const PACE_FILE_URL = "data/pace-totals.json";
+let paceFileRequest = null;
+
+// { season, boundaries: { "YYYY-MM-DD": { playerId: [points, gamesPlayed] } } }
+// or null; fetched once per page.
+function loadPaceFile() {
+  if (!paceFileRequest) {
+    paceFileRequest = fetch(PACE_FILE_URL)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  }
+  return paceFileRequest;
+}
+
+// The last PACE_WINDOWS Mondays on or before `today`, newest first.
+function paceBoundaries(today) {
+  const t = Date.parse(`${today}T00:00:00Z`);
+  const daysSinceMonday = (new Date(t).getUTCDay() + 6) % 7;
+  const monday = t - daysSinceMonday * DAY_MS;
+  return Array.from({ length: PACE_WINDOWS }, (_, i) => new Date(monday - i * PACE_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10));
+}
 const totalsBeforeCache = new Map(); // "season|date" -> Promise<Map<playerId, { points, gamesPlayed }>>
 
 function fetchTotalsBefore(season, date) {
@@ -200,16 +227,20 @@ function fetchTotalsBefore(season, date) {
   return totalsBeforeCache.get(key);
 }
 
-// Season totals as of the start of each of the last PACE_WINDOWS weeks
-// (index 0 = a week ago). A boundary before the season's first game has
-// nothing yet, so it needs no request (null). Resolves to null if any
-// request fails — the pace then falls back to the plain season average.
-function fetchWeeklyBoundaryTotals(season, firstGameDate) {
-  const today = Date.parse(easternDate());
-  const boundaries = Array.from({ length: PACE_WINDOWS }, (_, i) =>
-    new Date(today - (i + 1) * PACE_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10));
-  return Promise.all(boundaries.map((date) => (date > firstGameDate ? fetchTotalsBefore(season, date) : null)))
-    .catch(() => null);
+// Season totals as of each weekly cut-off (index 0 = the most recent
+// Monday). A cut-off before the season's first game has nothing yet, so it
+// needs no data (null). Resolves to null if any request fails — the pace
+// then falls back to the plain season average.
+async function fetchWeeklyBoundaryTotals(season, firstGameDate) {
+  const file = await loadPaceFile();
+  const saved = (file && file.season === String(season) && file.boundaries) || {};
+  return Promise.all(paceBoundaries(easternDate()).map((date) => {
+    if (!(date > firstGameDate)) return null;
+    if (saved[date]) {
+      return new Map(Object.entries(saved[date]).map(([id, [points, gamesPlayed]]) => [Number(id), { points, gamesPlayed }]));
+    }
+    return fetchTotalsBefore(season, date);
+  })).catch(() => null);
 }
 
 // Points per game played, recency-weighted (see PACE_WINDOW_DAYS), from
@@ -1070,6 +1101,17 @@ async function initHistory() {
   renderChart(seasonSelect.value);
   seasonSelect.addEventListener("change", () => renderChart(seasonSelect.value));
   rangeSelect.addEventListener("change", () => renderChart(seasonSelect.value));
+
+  // Get the Projected range's extra data ready in the background, so
+  // switching to it is instant: the pace file and the injury report (both
+  // cached once loaded). Static file + ESPN only — never the Worker, so this
+  // costs nothing against its limits for visitors who never open Projected.
+  setTimeout(() => {
+    const seasons = getPoolSeasons();
+    if (document.visibilityState !== "visible" || seasonSelect.value !== seasons[seasons.length - 1]) return;
+    loadPaceFile();
+    fetchInjuries();
+  }, 3000);
   // Chart.js colors are baked into the chart at construction time, so a
   // theme flip needs an explicit re-render to pick up the new palette.
   window.addEventListener("themechange", () => renderChart(seasonSelect.value));

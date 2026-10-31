@@ -74,6 +74,15 @@ jobs:
         working-directory: .github/scripts
         run: node fetch-schedule.mjs
 
+      # Season totals as of each weekly cut-off, for the Projected chart's
+      # recent-pace weighting — one static file instead of a Worker request
+      # per week on every view (see history.js). Needs the schedule above.
+      # Best effort: the site fetches any missing cut-off itself.
+      - name: Refresh pace totals
+        continue-on-error: true
+        working-directory: .github/scripts
+        run: node fetch-pace-totals.mjs
+
       # Saves last season's final totals as a static file the site loads
       # instead of going through the Worker (see common.js). Only writes
       # once per season; best effort like the schedule refresh.
@@ -86,6 +95,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/standings-history.json data/player-points.json data/schedule.json data/weekly-awards.json data/injury-history.json data/season-*.json
+          git add data/standings-history.json data/player-points.json data/schedule.json data/weekly-awards.json data/injury-history.json data/pace-totals.json data/season-*.json
           git diff --cached --quiet || git commit -m "Snapshot standings for $(date -u -d yesterday +%Y-%m-%d)"
           git push
