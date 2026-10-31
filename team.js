@@ -101,13 +101,17 @@ function formatSeasonLabel(seasonId) {
 const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
 
-// The injury icon: two crossed bandages. The one underneath is masked with a
-// gap around the one on top (rather than filled with a background color) so
-// it looks right on any row color.
-// (The mask goes on an unrotated wrapper: its coordinates follow the element
-// it's applied to, so on the rotated group itself the gap would turn too.)
-const BANDAGE_SHAPE = `<rect x="1.5" y="8.8" width="21" height="6.4" rx="3.2"/>`;
-const BANDAGE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><mask id="bandage-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff" stroke="none"/><g transform="rotate(45 12 12)" fill="#000" stroke="#000" stroke-width="3.6">${BANDAGE_SHAPE}</g></mask><g mask="url(#bandage-gap)"><g transform="rotate(-45 12 12)">${BANDAGE_SHAPE}</g></g><g transform="rotate(45 12 12)">${BANDAGE_SHAPE}<path d="M7.2 8.8v6.4M16.8 8.8v6.4"/></g></svg>`;
+// The injury marker, by ESPN's status (see fetchInjuries): day-to-day gets
+// a bandaged face, anything longer (out, injured reserve) an ambulance, and
+// a suspension — not an injury at all — a "no entry" sign. A manual
+// `injured: true` flag in teams.js has no status, so it gets the face.
+// The tooltip on the marker still gives the details.
+function injuryEmoji(status) {
+  const s = (status || "").toLowerCase();
+  if (s.includes("suspen")) return "🚫";
+  if (s === "out" || s.includes("reserve")) return "🚑";
+  return "🤕";
+}
 
 // Each player's credited points/goals/assists as of the last render —
 // compared against on the next one so a row whose score just went up can
@@ -350,6 +354,7 @@ async function loadAndRender(team, isInitialLoad) {
             ),
         tonight: ambiguous || !tonightIndexes ? null : liveNightPoints(entry, tradeInfo, tonightIndexes),
         injured: manuallyFlagged || Boolean(liveInjury),
+        injuryStatus: liveInjury ? liveInjury.status : null,
         injuryLabel: liveInjury ? injuryTooltip(liveInjury) : "Injured",
       };
     });
@@ -422,7 +427,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
   // hidden on the page's first render has no width to measure.
   const countUps = [];
 
-  rows.forEach(({ name, injured, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }, index) => {
+  rows.forEach(({ name, injured, injuryStatus, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }, index) => {
     if (credited) newPlayerStats.set(name, { points: credited.points, goals: credited.goals, assists: credited.assists });
     const prev = previousPlayerStats ? previousPlayerStats.get(name) : undefined;
     const prevScore = prev ? prev.points : undefined;
@@ -431,7 +436,9 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
     // new goal since the last poll, else it was only an assist.
     const lightClass = !scoreIncreased ? "" : credited.goals > prev.goals ? "goal-light" : "assist-light";
     const injuryTitle = (injuryLabel || "Injured").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    const injuryIcon = injured && !tradedOut ?`<span class="injury-icon" title="${injuryTitle}">${BANDAGE_ICON}</span>` : "";
+    const injuryIcon = injured && !tradedOut
+      ? `<span class="injury-icon" title="${injuryTitle}" aria-label="${injuryTitle}">${injuryEmoji(injuryStatus)}</span>`
+      : "";
     const acquiredBadge = tradedIn
       ? `<span class="traded-badge" title="Acquired via trade — stats before joining this team don't count">Acquired</span>`
       : "";

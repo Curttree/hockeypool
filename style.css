@@ -700,11 +700,11 @@ tbody tr:hover { background: var(--row-hover); }
   width: 18px;
   height: 18px;
   margin-left: 5px;
-  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
   cursor: help;
   vertical-align: middle;
 }
-.injury-icon svg { display: block; width: 100%; height: 100%; }
 
 /* Last season's team, shown before a player's first game this season. */
 .prev-team {
@@ -1294,20 +1294,20 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
   font-weight: 400;
 }
 
-.tonight {
+.tonight-summary {
   margin-bottom: 20px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
 }
-.tonight[hidden] { display: none; }
-.tonight summary {
+.tonight-summary[hidden] { display: none; }
+.tonight-summary summary {
   padding: 12px 16px;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
 }
-.tonight summary span {
+.tonight-summary summary span {
   margin-left: 6px;
   color: var(--muted);
   font-size: 0.85rem;
