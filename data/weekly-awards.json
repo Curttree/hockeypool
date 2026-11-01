@@ -430,6 +430,103 @@
           "players": []
         }
       }
+    },
+    {
+      "week": 5,
+      "weekStart": "2026-10-25",
+      "weekEnd": "2026-10-31",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Rick"
+          ],
+          "points": 56,
+          "next": [
+            {
+              "team": "Curtis",
+              "points": 44
+            },
+            {
+              "team": "Hannah",
+              "points": 40
+            }
+          ]
+        },
+        "biggestMover": {
+          "gain": 1,
+          "teams": [
+            {
+              "team": "Rick",
+              "from": 2,
+              "to": 1
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Filip Forsberg",
+              "team": "Gayle"
+            }
+          ],
+          "points": 9,
+          "goals": 4,
+          "assists": 5,
+          "next": [
+            {
+              "player": "Matvei Gridin",
+              "team": "Luke",
+              "value": 5
+            },
+            {
+              "player": "Auston Matthews",
+              "team": "Curtis",
+              "value": 5
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Matvei Gridin",
+              "team": "Luke"
+            }
+          ],
+          "points": 5,
+          "cost": 20,
+          "next": [
+            {
+              "player": "Pierre-Luc Dubois",
+              "team": "Curtis",
+              "value": 3
+            },
+            {
+              "player": "Matthew Tkachuk",
+              "team": "Curtis",
+              "value": 5
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Alex Ovechkin",
+              "team": "Luke"
+            }
+          ],
+          "points": 0,
+          "cost": 64,
+          "games": 2
+        },
+        "tradeOfWeek": {
+          "team": "Rick",
+          "date": "2026-10-27",
+          "playerIn": "Vasily Podkolzin",
+          "playerOut": "Zach Hyman",
+          "pointsIn": 1,
+          "pointsOut": 0
+        }
+      }
     }
   ]
 }
