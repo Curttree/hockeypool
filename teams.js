@@ -80,7 +80,7 @@ const TEAMS_BY_SEASON = {
         players: ["Macklin Celebrini", "David Pastrnak", "Leon Draisaitl", "William Nylander", "Jack Hughes", "Mikko Rantanen",
           "Kirill Marchenko", "Brady Tkachuk", "Will Smith", "Auston Matthews", "Zach Hyman", "Mason McTavish", "Matthew Tkachuk",
           "Michael Misa", "Pierre-Luc Dubois", { name: "Nick Paul", id: 8477426 }, "Porter Martone", "Anton Frondell", "Zayne Parekh", "William Karlsson",
-          "Easton Cowan"
+          "Easton Cowan", "Connor McDavid"
         ]
     },
     {
@@ -156,6 +156,14 @@ const TEAMS_BY_SEASON = {
         date: "2026-10-30",
         playerOut: { name: "Zach Hyman", points: 1, goals: 1, assists: 0 },
         playerIn: { name: "Easton Cowan", points: 14, goals: 6, assists: 8 },
+      },
+      // Curtis sends Macklin Celebrini out for Connor McDavid (season totals
+      // at the time of the trade, 2026-11-03).
+      {
+        team: "Curtis",
+        date: "2026-11-03",
+        playerOut: { name: "Macklin Celebrini", points: 16, goals: 5, assists: 11 },
+        playerIn: { name: "Connor McDavid", points: 39, goals: 9, assists: 30 },
       },
     ],
     tradeDeadline: "2027-03-01T15:00:00-05:00",
