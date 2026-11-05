@@ -104,7 +104,8 @@ const TEAMS_BY_SEASON = {
         logo: "images/hannah.png",
         players: ["Nathan MacKinnon","Evan Bouchard", "William Nylander", "Jack Hughes", "Sidney Crosby", "Mark Stone", "Leo Carlsson",
           "Ivan Barbashev", "Auston Matthews", "J.T. Miller", "Vladimir Tarasenko", "Boone Jenner", "Michael Amadio", "Andre Burakovsky",
-          "Jake Evans", "Nick Cousins", "Tyler Seguin", "Barclay Goodrow", "William Karlsson", "Nils Hoglander", "JJ Peterka"
+          "Jake Evans", "Nick Cousins", "Tyler Seguin", "Barclay Goodrow", "William Karlsson", "Nils Hoglander", "JJ Peterka",
+          "Cole Perfetti"
         ]
     },
     {
@@ -148,6 +149,15 @@ const TEAMS_BY_SEASON = {
         date: "2026-10-29",
         playerOut: { name: "Vladimir Tarasenko", points: 0, goals: 0, assists: 0 },
         playerIn: { name: "JJ Peterka", points: 9, goals: 4, assists: 5 },
+      },
+      // Hannah sends Andre Burakovsky (injured) out for Cole Perfetti (season
+      // totals at the time of the trade, 2026-11-05). Burakovsky hasn't scored
+      // this season, so his line is empty.
+      {
+        team: "Hannah",
+        date: "2026-11-05",
+        playerOut: { name: "Andre Burakovsky", points: 0, goals: 0, assists: 0 },
+        playerIn: { name: "Cole Perfetti", points: 11, goals: 6, assists: 5 },
       },
       // Curtis sends Zach Hyman out for Easton Cowan (season totals at the
       // time of the trade, 2026-10-30).
