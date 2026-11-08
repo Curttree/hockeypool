@@ -527,6 +527,101 @@
           "pointsOut": 0
         }
       }
+    },
+    {
+      "week": 6,
+      "weekStart": "2026-11-01",
+      "weekEnd": "2026-11-07",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Rick"
+          ],
+          "points": 64,
+          "next": [
+            {
+              "team": "Curtis",
+              "points": 58
+            },
+            {
+              "team": "Jordan",
+              "points": 53
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Connor McDavid",
+              "team": "Jordan"
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Gayle"
+            },
+            {
+              "player": "Connor McDavid",
+              "team": "Luke"
+            }
+          ],
+          "points": 10,
+          "goals": 2,
+          "assists": 8,
+          "next": [
+            {
+              "player": "Leon Draisaitl",
+              "team": "Curtis",
+              "value": 8
+            },
+            {
+              "player": "Evan Bouchard",
+              "team": "Hannah",
+              "value": 8
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Kirby Dach",
+              "team": "Jordan"
+            }
+          ],
+          "points": 3,
+          "cost": 15,
+          "next": [
+            {
+              "player": "Michael Misa",
+              "team": "Curtis",
+              "value": 4
+            },
+            {
+              "player": "Berkly Catton",
+              "team": "Jordan",
+              "value": 3
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Alex Ovechkin",
+              "team": "Luke"
+            }
+          ],
+          "points": 0,
+          "cost": 64,
+          "games": 3
+        },
+        "tradeOfWeek": {
+          "team": "Curtis",
+          "date": "2026-11-03",
+          "playerIn": "Connor McDavid",
+          "playerOut": "Macklin Celebrini",
+          "pointsIn": 8,
+          "pointsOut": 5
+        }
+      }
     }
   ]
 }
