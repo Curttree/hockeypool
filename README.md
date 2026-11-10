@@ -11,7 +11,7 @@ browsing/filtering NHL skater stats when drafting.
 | File | What it is |
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
-| `team.html` | One team's full roster and per-player stats for a given season, including how many trades the team has used (`TRADES_PER_SEASON` in `teams.js`) and a "Cost" column showing each player's point total from the prior season (the roster is listed highest cost first, and anyone traded away shows "—" in their usual place). The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
+| `team.html` | One team's full roster and per-player stats for a given season, including each player's NHL.com headshot (the NHL's own picture, loaded after the table) and how many trades the team has used (`TRADES_PER_SEASON` in `teams.js`) and a "Cost" column showing each player's point total from the prior season (the roster is listed highest cost first, and anyone traded away shows "—" in their usual place). The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
 | `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. A collapsible "Players playing tonight" header at the top counts each pool team's players in today's games (open or closed is remembered). Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
 | `awards.html` | Awards — weekly awards for each finished week, with arrows to browse earlier weeks (see "Weekly awards" below) |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
@@ -233,7 +233,10 @@ Bargain bin (most points per point of cost, at least 3 points), Cap anchor
 least 2 games), Trade of the week (the week's trade where the player who
 came in out-scored the one who left, since the trade) and Trainer's room
 (most injured players on a roster). Ties share an award, and one nobody
-qualifies for is left out of the week.
+qualifies for is left out of the week. Player awards (and the trade) show the 
+players' NHL.com headshots (`playerPhoto` in `common.js`, the same helper the 
+team page uses), which is why each saved winner carries the NHL `id`; weeks 
+saved before ids were kept were patched in.
 
 They're worked out once, when the week ends: on a Saturday snapshot the
 nightly job (`snapshot-standings.mjs`) loads the Awards page and calls

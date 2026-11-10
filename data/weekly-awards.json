@@ -26,15 +26,18 @@
           "winners": [
             {
               "player": "Connor McDavid",
-              "team": "Jordan"
+              "team": "Jordan",
+              "id": 8478402
             },
             {
               "player": "Connor McDavid",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8478402
             },
             {
               "player": "Connor McDavid",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8478402
             }
           ],
           "points": 9,
@@ -57,7 +60,8 @@
           "winners": [
             {
               "player": "Marco Rossi",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8482079
             }
           ],
           "points": 4,
@@ -79,7 +83,8 @@
           "winners": [
             {
               "player": "Juraj Slafkovský",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8483515
             }
           ],
           "points": 0,
@@ -135,19 +140,23 @@
           "winners": [
             {
               "player": "Auston Matthews",
-              "team": "Curtis"
+              "team": "Curtis",
+              "id": 8479318
             },
             {
               "player": "Auston Matthews",
-              "team": "Anmol"
+              "team": "Anmol",
+              "id": 8479318
             },
             {
               "player": "Auston Matthews",
-              "team": "Hannah"
+              "team": "Hannah",
+              "id": 8479318
             },
             {
               "player": "Auston Matthews",
-              "team": "Rick"
+              "team": "Rick",
+              "id": 8479318
             }
           ],
           "points": 9,
@@ -170,7 +179,8 @@
           "winners": [
             {
               "player": "Michael Brandsegg-Nygård",
-              "team": "Anmol"
+              "team": "Anmol",
+              "id": 8484794
             }
           ],
           "points": 3,
@@ -192,11 +202,13 @@
           "winners": [
             {
               "player": "Sidney Crosby",
-              "team": "Hannah"
+              "team": "Hannah",
+              "id": 8471675
             },
             {
               "player": "Sidney Crosby",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8471675
             }
           ],
           "points": 0,
@@ -248,11 +260,13 @@
           "winners": [
             {
               "player": "Brady Tkachuk",
-              "team": "Curtis"
+              "team": "Curtis",
+              "id": 8480801
             },
             {
               "player": "Brady Tkachuk",
-              "team": "Rick"
+              "team": "Rick",
+              "id": 8480801
             }
           ],
           "points": 10,
@@ -275,7 +289,8 @@
           "winners": [
             {
               "player": "Michael Brandsegg-Nygård",
-              "team": "Anmol"
+              "team": "Anmol",
+              "id": 8484794
             }
           ],
           "points": 3,
@@ -297,19 +312,23 @@
           "winners": [
             {
               "player": "William Nylander",
-              "team": "Curtis"
+              "team": "Curtis",
+              "id": 8477939
             },
             {
               "player": "William Nylander",
-              "team": "Hannah"
+              "team": "Hannah",
+              "id": 8477939
             },
             {
               "player": "William Nylander",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8477939
             },
             {
               "player": "William Nylander",
-              "team": "Rick"
+              "team": "Rick",
+              "id": 8477939
             }
           ],
           "points": 1,
@@ -361,15 +380,18 @@
           "winners": [
             {
               "player": "Connor McDavid",
-              "team": "Jordan"
+              "team": "Jordan",
+              "id": 8478402
             },
             {
               "player": "Connor McDavid",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8478402
             },
             {
               "player": "Connor McDavid",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8478402
             }
           ],
           "points": 10,
@@ -392,7 +414,8 @@
           "winners": [
             {
               "player": "Berkly Catton",
-              "team": "Jordan"
+              "team": "Jordan",
+              "id": 8484800
             }
           ],
           "points": 3,
@@ -414,7 +437,8 @@
           "winners": [
             {
               "player": "Filip Forsberg",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8476887
             }
           ],
           "points": 0,
@@ -466,7 +490,8 @@
           "winners": [
             {
               "player": "Filip Forsberg",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8476887
             }
           ],
           "points": 9,
@@ -489,7 +514,8 @@
           "winners": [
             {
               "player": "Matvei Gridin",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8484860
             }
           ],
           "points": 5,
@@ -511,7 +537,8 @@
           "winners": [
             {
               "player": "Alex Ovechkin",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8471214
             }
           ],
           "points": 0,
@@ -524,7 +551,9 @@
           "playerIn": "Vasily Podkolzin",
           "playerOut": "Zach Hyman",
           "pointsIn": 1,
-          "pointsOut": 0
+          "pointsOut": 0,
+          "idIn": 8481617,
+          "idOut": 8475786
         }
       }
     },
@@ -553,15 +582,18 @@
           "winners": [
             {
               "player": "Connor McDavid",
-              "team": "Jordan"
+              "team": "Jordan",
+              "id": 8478402
             },
             {
               "player": "Connor McDavid",
-              "team": "Gayle"
+              "team": "Gayle",
+              "id": 8478402
             },
             {
               "player": "Connor McDavid",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8478402
             }
           ],
           "points": 10,
@@ -584,7 +616,8 @@
           "winners": [
             {
               "player": "Kirby Dach",
-              "team": "Jordan"
+              "team": "Jordan",
+              "id": 8481523
             }
           ],
           "points": 3,
@@ -606,7 +639,8 @@
           "winners": [
             {
               "player": "Alex Ovechkin",
-              "team": "Luke"
+              "team": "Luke",
+              "id": 8471214
             }
           ],
           "points": 0,
@@ -619,7 +653,9 @@
           "playerIn": "Connor McDavid",
           "playerOut": "Macklin Celebrini",
           "pointsIn": 8,
-          "pointsOut": 5
+          "pointsOut": 5,
+          "idIn": 8478402,
+          "idOut": 8484801
         }
       }
     }

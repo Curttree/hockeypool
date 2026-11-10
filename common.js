@@ -544,6 +544,24 @@ function nhlLogoUrl(abbrev) {
   return `https://assets.nhle.com/logos/nhl/svg/${abbrev}_${variant}.svg`;
 }
 
+// A player's NHL.com headshot in a round frame (.player-photo in style.css):
+// the NHL's own picture, as is, from its "latest" URL (the right team and
+// season for whoever they are now). Their initials sit in the frame meanwhile
+// — the photos are ~100 KB each, so they fill in after the page is up — and
+// go once the picture has loaded (the pictures are transparent, so they'd
+// show through). They stay if it doesn't load, or there's no id to look up.
+// `ringColor` (a CSS color) tints the frame; it's muted otherwise.
+const HEADSHOT_URL = "https://assets.nhle.com/mugs/nhl/latest/";
+
+function playerPhoto(name, id, ringColor = null) {
+  const initials = name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const photo = id
+    ? `<img src="${HEADSHOT_URL}${id}.png" alt="" loading="lazy" decoding="async" onload="this.classList.add('is-loaded');this.parentElement.classList.add('has-photo')" onerror="this.remove()">`
+    : "";
+  const style = ringColor ? ` style="--team-color:${ringColor}"` : "";
+  return `<span class="player-photo" aria-hidden="true"${style}><span class="player-initials">${initials}</span>${photo}</span>`;
+}
+
 // The day before a "YYYY-MM-DD" date. Done at noon UTC so the arithmetic
 // can't be thrown off by a DST boundary.
 function previousDate(dateStr) {

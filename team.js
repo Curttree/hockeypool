@@ -118,6 +118,12 @@ function renderTradesLabel(season, teamName) {
   tradesLabelEl.innerHTML = `<span class="trade-pips" aria-hidden="true">${pips}</span>${text}`;
 }
 
+// A player's headshot (see playerPhoto in common.js) beside their name and
+// whatever goes with it (injury marker, badges).
+function playerCell(name, photoId, content) {
+  return `<span class="player-cell">${playerPhoto(name, photoId)}<span class="player-label">${content}</span></span>`;
+}
+
 // The injury marker, by ESPN's status (see fetchInjuries): day-to-day gets
 // a bandaged face, anything longer (out, injured reserve) an ambulance, and
 // a suspension — not an injury at all — a "no entry" sign. A manual
@@ -354,6 +360,9 @@ async function loadAndRender(team, isInitialLoad) {
       return {
         name,
         player,
+        // Whose headshot to show: the NHL's id for them, from this season's or
+        // last season's stats (or the id teams.js pins).
+        photoId: (player && player.playerId) || (previousPlayer && previousPlayer.playerId) || playerIdHint(entry) || null,
         noDataExpected,
         tradedOut: tradeInfo.tradedOut,
         tradedIn: tradeInfo.tradedIn,
@@ -401,7 +410,7 @@ async function loadAndRender(team, isInitialLoad) {
 // load just removes itself, leaving the abbreviation.
 function nhlTeamLogo(teamAbbrevs) {
   const abbrev = teamAbbrevs.split(",").pop().trim();
-  return `<img class="nhl-logo" src="${nhlLogoUrl(abbrev)}" alt="" width="26" height="26" onerror="this.remove()">`;
+  return `<img class="nhl-logo" src="${nhlLogoUrl(abbrev)}" alt="" width="32" height="32" onerror="this.remove()">`;
 }
 
 // `entrance` is true on the page's first render only: the rows settle in
@@ -445,7 +454,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
   // hidden on the page's first render has no width to measure.
   const countUps = [];
 
-  rows.forEach(({ name, injured, injuryStatus, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }, index) => {
+  rows.forEach(({ name, photoId, injured, injuryStatus, injuryLabel, player, tradedOut, tradedIn, ambiguous, credited, previousPoints, previousTeam, lastNight, tonight, noDataExpected }, index) => {
     if (credited) newPlayerStats.set(name, { points: credited.points, goals: credited.goals, assists: credited.assists });
     const prev = previousPlayerStats ? previousPlayerStats.get(name) : undefined;
     const prevScore = prev ? prev.points : undefined;
@@ -495,7 +504,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
       totalGoals += credited.goals;
       totalAssists += credited.assists;
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}</td>
+        <td>${playerCell(name, photoId, `${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}`)}</td>
         ${teamCell(player, previousTeam)}
         <td class="num score"><span class="score-num">${credited.points}</span></td>
         ${tonightCell}
@@ -512,7 +521,7 @@ function renderTeam(rows, totalCost, showTonight, entrance) {
         ? ""
         : ` <span class="warn" title="${warningTitle}">⚠</span>`;
       tr.innerHTML = `
-        <td>${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}${warningIcon}</td>
+        <td>${playerCell(name, photoId, `${displayName}${injuryIcon}${acquiredBadge}${tradedBadge}${warningIcon}`)}</td>
         ${teamCell(null, ambiguous ? null : previousTeam)}
         <td class="num score"><span class="score-num">0</span></td>
         ${tonightCell}

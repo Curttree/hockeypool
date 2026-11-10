@@ -149,6 +149,7 @@ async function buildWeeklyAwards(season, weekEnd, previous, current, { injuries 
       const prior = resolvePlayer(previousIndex, name, null, playerPositionHint(entry), playerIdHint(entry));
       rows.push({
         player: name,
+        id: player.playerId,
         team: team.name,
         points: Math.max(0, end.points - Math.max(start.points, tradeInfo.entry.points)),
         goals: Math.max(0, end.goals - Math.max(start.goals, tradeInfo.entry.goals)),
@@ -162,7 +163,7 @@ async function buildWeeklyAwards(season, weekEnd, previous, current, { injuries 
   if (star && star.winners[0].points > 0) {
     const top = star.winners[0];
     awards.playerOfWeek = {
-      winners: star.winners.map((w) => ({ player: w.player, team: w.team })),
+      winners: star.winners.map((w) => ({ player: w.player, team: w.team, id: w.id })),
       points: top.points,
       goals: top.goals,
       assists: top.points - top.goals,
@@ -177,7 +178,7 @@ async function buildWeeklyAwards(season, weekEnd, previous, current, { injuries 
   if (bargain) {
     const top = bargain.winners[0];
     awards.bargainBin = {
-      winners: bargain.winners.map((w) => ({ player: w.player, team: w.team })),
+      winners: bargain.winners.map((w) => ({ player: w.player, team: w.team, id: w.id })),
       points: top.points,
       cost: top.cost,
       next: nextPlayers(bargain.rest, (r) => r.points),
@@ -188,7 +189,7 @@ async function buildWeeklyAwards(season, weekEnd, previous, current, { injuries 
   if (anchor) {
     const top = anchor.winners[0];
     awards.capAnchor = {
-      winners: anchor.winners.map((w) => ({ player: w.player, team: w.team })),
+      winners: anchor.winners.map((w) => ({ player: w.player, team: w.team, id: w.id })),
       points: top.points,
       cost: top.cost,
       games: top.games,
@@ -205,7 +206,12 @@ async function buildWeeklyAwards(season, weekEnd, previous, current, { injuries 
       if (incoming.ambiguous || !incoming.player || outgoing.ambiguous || !outgoing.player) return null;
       const pointsIn = Math.max(0, (endTotals.get(incoming.player.playerId) || none).points - trade.playerIn.points);
       const pointsOut = Math.max(0, (endTotals.get(outgoing.player.playerId) || none).points - trade.playerOut.points);
-      return { team: trade.team, date: trade.date, playerIn: trade.playerIn.name, playerOut: trade.playerOut.name, pointsIn, pointsOut };
+      return {
+        team: trade.team, date: trade.date,
+        playerIn: trade.playerIn.name, idIn: incoming.player.playerId,
+        playerOut: trade.playerOut.name, idOut: outgoing.player.playerId,
+        pointsIn, pointsOut,
+      };
     })
     .filter(Boolean);
   const bestTrade = pickBest(trades, (a, b) => (b.pointsIn - b.pointsOut) - (a.pointsIn - a.pointsOut));
@@ -269,13 +275,21 @@ function awardTeamsHtml(teams) {
   return teams.map((t) => `${awardTeamIcon(t)}<span>${awardsEsc(t)}</span>`).join('<span class="aw-amp">&amp;</span>');
 }
 
-// Winners of a player award: the player's name, with an icon for each team
-// that owns them (a player on several teams is shown once).
+// Winners of a player award: their headshot and name, with an icon for each
+// team that owns them (a player on several teams is shown once). The photo's
+// ring is the owning team's color when there's one owner. Weeks saved before
+// ids were kept have no photo — just initials.
 function awardPlayersHtml(winners) {
   const byPlayer = new Map();
-  winners.forEach((w) => byPlayer.set(w.player, [...(byPlayer.get(w.player) || []), w.team]));
-  return [...byPlayer].map(([player, teams]) =>
-    `<span class="aw-name">${awardsEsc(player)}</span><span class="aw-owners">${teams.map(awardTeamIcon).join("")}</span>`).join('<span class="aw-amp">&amp;</span>');
+  winners.forEach((w) => {
+    const entry = byPlayer.get(w.player) || { id: w.id, teams: [] };
+    entry.teams.push(w.team);
+    byPlayer.set(w.player, entry);
+  });
+  return [...byPlayer].map(([player, { id, teams }]) => {
+    const ring = teams.length === 1 ? getTeamColor(awardsSeason, teams[0]) : null;
+    return `<span class="aw-person">${playerPhoto(player, id, ring)}<span class="aw-name">${awardsEsc(player)}</span><span class="aw-owners">${teams.map(awardTeamIcon).join("")}</span></span>`;
+  }).join('<span class="aw-amp">&amp;</span>');
 }
 
 // "Then Hughes 7, Rantanen 7" under a player award.
@@ -331,7 +345,11 @@ const AWARD_TILES = [
   })],
   ["tradeOfWeek", "exchange", "Trade of the week", (a) => ({
     winner: awardTeamsHtml([a.team]),
-    big: `${awardsEsc(a.playerIn)} <em>${a.pointsIn}</em> ${a.pointsIn === 1 ? "pt" : "pts"} vs ${awardsEsc(a.playerOut)} ${a.pointsOut}`,
+    big: `<span class="aw-swap">
+      <span class="aw-person aw-small">${playerPhoto(a.playerIn, a.idIn)}<span>${awardsEsc(a.playerIn)} <em>${a.pointsIn}</em> ${a.pointsIn === 1 ? "pt" : "pts"}</span></span>
+      <span class="aw-amp">vs</span>
+      <span class="aw-person aw-small">${playerPhoto(a.playerOut, a.idOut)}<span>${awardsEsc(a.playerOut)} ${a.pointsOut}</span></span>
+    </span>`,
     context: `Since the trade on ${awardsDay(a.date)}`,
   })],
   ["trainersRoom", "kit", "Trainer's room", (a) => ({
