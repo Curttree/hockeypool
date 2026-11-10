@@ -2,6 +2,28 @@
 // full-season skater roster (used by both the Player Selector's "Fill to
 // 20" and the Standings page's score calculation).
 
+// ---- Load timing -----------------------------------------------------------
+// Marks the stages of a page load (performance.mark, so they show up in the
+// browser's Performance panel too), each as milliseconds since navigation
+// start. Add ?timing to any page's URL to also log them to the console as
+// they happen; either way `loadTimings()` lists them all.
+const LOG_TIMINGS = new URLSearchParams(location.search).has("timing");
+
+function markTiming(label) {
+  try {
+    performance.mark(label);
+  } catch {
+    // no Performance API — timings just aren't recorded
+  }
+  if (LOG_TIMINGS) console.info(`[timing] ${label}: ${Math.round(performance.now())} ms`);
+}
+
+function loadTimings() {
+  return performance.getEntriesByType("mark").map((m) => `${m.name}: ${Math.round(m.startTime)} ms`);
+}
+
+markTiming("common.js:start");
+
 // Fill this in with your deployed Cloudflare Worker's *.workers.dev URL
 // (see worker.js) after publishing to GitHub Pages. Localhost keeps using
 // the relative /api paths served by app.py.
@@ -92,11 +114,13 @@ let liveRequestAt = 0;
 function fetchLive() {
   if (!liveRequest || Date.now() - liveRequestAt > 10 * 1000) {
     liveRequestAt = Date.now();
+    markTiming("live:request");
     liveRequest = fetch(`${API_BASE}/api/live`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => (data && data.from && Array.isArray(data.players) ? data : null))
       .catch(() => null)
       .then((data) => {
+        markTiming(data ? "live:response" : "live:failed");
         if (data) {
           saveLastLive(data);
           rememberLiveWindow(data);
@@ -212,7 +236,10 @@ function mergeLivePlayers(basePlayers, livePlayers, knownPlayers) {
 const rosterRequests = new Map(); // season -> in-flight Promise
 function fetchAllPlayersForSeason(season) {
   const cached = getCachedRoster(season);
-  if (cached) return Promise.resolve(cached);
+  if (cached) {
+    markTiming("roster:cached");
+    return Promise.resolve(cached);
+  }
   const key = String(season);
   if (!rosterRequests.has(key)) {
     rosterRequests.set(key, loadRosterForSeason(season).finally(() => rosterRequests.delete(key)));
@@ -274,6 +301,7 @@ async function fetchSeasonTotals(season, before) {
   const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
   if (before) params.set("before", before);
   const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+  markTiming(before ? "totals:response" : "season:response");
   return players;
 }
 
@@ -305,6 +333,7 @@ function guessLiveFrom() {
 }
 
 async function loadRosterForSeason(season) {
+  markTiming("roster:start");
   if (isCompletedSeason(season)) {
     const players = await fetchCompletedSeason(season);
     setCachedRoster(season, players, LIVE_IDLE_MAX_MS); // final — nothing to refresh
@@ -342,6 +371,7 @@ async function loadRosterForSeason(season) {
   const knownPlayers = await knownPromise;
   const merged = mergeLivePlayers(players, live.players, knownPlayers);
   setCachedRoster(season, merged, liveRefreshMs(live));
+  markTiming("roster:ready");
   return merged;
 }
 

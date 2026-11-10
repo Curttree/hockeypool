@@ -94,25 +94,40 @@ function computeStandings(season, teams, roster, previousRoster, tonightDate = n
 // (What counts as "the current night" — currentNightDate, in common.js — is
 // shared with the recap and the team page's "Last Night" column.)
 
-// The date of the most recent daily snapshot (what the recap banner is
-// built from), fetched at most every 10 minutes — the file only changes
-// once a day. A failed fetch keeps the last known value and retries on the
-// next poll.
+// The saved daily snapshots (what the recap banner is built from), fetched
+// at most every 10 minutes — the file only changes once a day — and shared by
+// everything that asks while a fetch is under way. loadAndRender asks for it
+// as the page starts, in parallel with the roster, so it's already here by
+// the time "Tonight" needs it. A failed fetch isn't remembered.
 const SNAPSHOT_HISTORY_URL = "data/standings-history.json";
 const SNAPSHOT_DATE_TTL_MS = 10 * 60 * 1000;
-let snapshotDateCache = { season: null, date: null, fetchedAt: 0 };
+let snapshotHistoryRequest = null;
+let snapshotHistoryAt = 0;
+let lastSnapshotDate = { season: null, date: null };
 
+function fetchSnapshotHistory() {
+  if (!snapshotHistoryRequest || Date.now() - snapshotHistoryAt > SNAPSHOT_DATE_TTL_MS) {
+    snapshotHistoryAt = Date.now();
+    const request = fetch(SNAPSHOT_HISTORY_URL).then((r) => r.json());
+    snapshotHistoryRequest = request;
+    request.catch(() => {
+      if (snapshotHistoryRequest === request) snapshotHistoryRequest = null;
+    });
+  }
+  return snapshotHistoryRequest;
+}
+
+// The date of the most recent daily snapshot. A failed fetch keeps the last
+// known value.
 async function latestSnapshotDate(season) {
-  const cache = snapshotDateCache;
-  if (cache.season === season && Date.now() - cache.fetchedAt < SNAPSHOT_DATE_TTL_MS) return cache.date;
   try {
-    const history = await fetch(SNAPSHOT_HISTORY_URL).then((r) => r.json());
+    const history = await fetchSnapshotHistory();
     const dates = (history[season] || []).map((e) => e.date).sort();
-    snapshotDateCache = { season, date: dates.length ? dates[dates.length - 1] : null, fetchedAt: Date.now() };
+    lastSnapshotDate = { season, date: dates.length ? dates[dates.length - 1] : null };
   } catch {
     // keep what we had
   }
-  return snapshotDateCache.season === season ? snapshotDateCache.date : null;
+  return lastSnapshotDate.season === season ? lastSnapshotDate.date : null;
 }
 
 // The night to tally into the "Tonight" column, or null when it shouldn't
@@ -697,6 +712,7 @@ function renderStandings(standings, season) {
 
   statusEl.hidden = true;
   table.hidden = false;
+  table.classList.remove("is-stale"); // see paintInstant
 }
 
 function buildSeasonOptions() {
@@ -718,6 +734,78 @@ function buildSeasonOptions() {
 const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
 
+// ---- Instant paint -----------------------------------------------------------
+// The standings need a few requests (live points, season totals), so a fresh
+// load puts something on screen straight away: the last standings this
+// browser rendered, or on a first visit the newest daily snapshot — shown
+// dimmed (.is-stale) until the real numbers land. Only the numbers matter
+// for that, so what's kept is just each team's computed standings.
+const LAST_STANDINGS_KEY_PREFIX = "nhl-points-last-standings:";
+
+function saveLastStandings(season, standings) {
+  if (previewMode) return; // never keep ?preview-fx's made-up numbers
+  try {
+    // "Tonight" is only true of the moment it was computed.
+    localStorage.setItem(LAST_STANDINGS_KEY_PREFIX + season, JSON.stringify(standings.map((t) => ({ ...t, tonight: null }))));
+  } catch {
+    // ignore (storage full/disabled)
+  }
+}
+
+function loadLastStandings(season) {
+  try {
+    const standings = JSON.parse(localStorage.getItem(LAST_STANDINGS_KEY_PREFIX + season) || "null");
+    return Array.isArray(standings) && standings.length ? standings : null;
+  } catch {
+    return null;
+  }
+}
+
+// The newest daily snapshot dressed up as standings: scores and ranks, and
+// nothing that would trigger a warning (those wait for the real numbers).
+async function snapshotStandings(season) {
+  const history = await fetchSnapshotHistory();
+  const latest = (history[season] || []).slice().sort((a, b) => a.date.localeCompare(b.date)).pop();
+  if (!latest) return null;
+  const sorted = latest.standings.slice().sort((a, b) => b.score - a.score);
+  const standings = sorted.map((s) => ({
+    name: s.team, score: s.score, tonight: null, missing: [], ambiguous: [],
+    cost: 0, activeCount: EXPECTED_ROSTER_SIZE, playerBreakdown: [],
+  }));
+  standings.forEach((team, i) => {
+    team.rank = i > 0 && team.score === standings[i - 1].score ? standings[i - 1].rank : i + 1;
+  });
+  return standings;
+}
+
+// Paints the stand-in table; false if there was nothing to show or the real
+// numbers got there first (`isStale` says so).
+async function paintInstant(season, isStale) {
+  let standings = loadLastStandings(season);
+  if (!standings) {
+    try {
+      standings = await snapshotStandings(season);
+    } catch {
+      return false;
+    }
+  }
+  if (!standings || isStale()) return false;
+
+  // Rendering saves the ranks it shows, which would replace the ones from
+  // the last real visit that the rank moods compare against.
+  const savedRanks = loadCachedRanks(season);
+  renderStandings(standings, season);
+  if (savedRanks) saveCachedRanks(season, savedRanks);
+  table.classList.add("is-stale");
+  // The real numbers should arrive as a plain first load: nothing flashes
+  // or slides just because they differ from the stand-in.
+  previousScores = null;
+  previousPlayerStats = null;
+  previousRanks = null;
+  markTiming("standings:instant");
+  return true;
+}
+
 async function loadAndRender(isInitialLoad) {
   // ?preview-fx: after the first render, the table shows made-up data —
   // don't let a background poll overwrite it with real data.
@@ -731,16 +819,26 @@ async function loadAndRender(isInitialLoad) {
     previousRanks = null;
   }
 
+  let freshDone = false;
+  let painted = false;
   try {
-    const [roster, previousRoster] = await Promise.all([
+    const rosters = Promise.all([
       fetchAllPlayersForSeason(currentSeason),
       // Only used for the cost warning — a failure here shouldn't block
       // the standings themselves from rendering.
       fetchAllPlayersForSeason(previousSeasonId(currentSeason)).catch(() => []),
     ]);
+    // Asked for now, not when "Tonight" needs it, so it's no extra wait.
+    if (!previewMode) latestSnapshotDate(currentSeason);
+    if (isInitialLoad && !previewMode) {
+      paintInstant(currentSeason, () => freshDone).then((done) => { painted = done; });
+    }
+    const [roster, previousRoster] = await rosters;
     // ?preview-fx's made-up update has no per-night data to show.
     const tonightDate = previewMode ? null : await tonightDateFor(currentSeason, roster);
     const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster, tonightDate);
+    freshDone = true;
+    markTiming("standings:computed");
     // Read before rendering — renderStandings overwrites the cache.
     // ?preview-crown pretends the last visit had the runner-up in front, to
     // see the crown hand-off (and the moods that go with it) on demand.
@@ -750,6 +848,8 @@ async function loadAndRender(isInitialLoad) {
       : isInitialLoad ? loadCachedRanks(currentSeason) : null;
     pendingRankBaseline = previewMode ? null : cachedRanks;
     renderStandings(standings, currentSeason);
+    saveLastStandings(currentSeason, standings);
+    markTiming("standings:rendered");
 
     if (isInitialLoad) {
       if (previewMode) {
@@ -767,8 +867,11 @@ async function loadAndRender(isInitialLoad) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
     if (isInitialLoad) {
+      statusEl.hidden = false;
       statusEl.classList.remove("loading-pulse");
-      statusEl.textContent = `Error loading standings: ${err.message}`;
+      statusEl.textContent = painted
+        ? "Couldn't update the standings — showing the last ones saved in this browser."
+        : `Error loading standings: ${err.message}`;
     }
   }
 }

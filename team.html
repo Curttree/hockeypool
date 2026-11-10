@@ -23,6 +23,7 @@
 <meta name="twitter:title" content="Tremblay Hockey Pool - Team">
 <meta name="twitter:description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
 <meta name="twitter:image" content="https://curttree.github.io/hockeypool/og-image.png">
+<link rel="preconnect" href="https://hockeypool-proxy.curttremblay.workers.dev" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -47,7 +48,10 @@
       <a href="./" id="back-link" class="back-link">&larr; Back to Standings</a>
       <h1 id="team-title">Team</h1>
     </div>
-    <span id="season-label" class="season-label"></span>
+    <span class="team-header-meta">
+      <span id="season-label" class="season-label"></span>
+      <span id="trades-label" class="season-label trades-label"></span>
+    </span>
   </header>
 
   <main>

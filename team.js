@@ -1,5 +1,6 @@
 const statusEl = document.getElementById("status");
 const seasonLabelEl = document.getElementById("season-label");
+const tradesLabelEl = document.getElementById("trades-label");
 const backLinkEl = document.getElementById("back-link");
 const titleEl = document.getElementById("team-title");
 const table = document.getElementById("team-table");
@@ -100,6 +101,22 @@ function formatSeasonLabel(seasonId) {
 // to poll often.
 const POLL_INTERVAL_MS = 60 * 1000;
 let currentSeason = null;
+
+// "●○ 1 trade left" under the season label: a pip per trade the pool allows
+// (filled once used), then what's left. A team recorded as over the limit
+// (a mistake in teams.js) says so in red.
+function renderTradesLabel(season, teamName) {
+  const used = countTradesUsed(season, teamName);
+  const left = Math.max(0, TRADES_PER_SEASON - used);
+  const pips = Array.from({ length: TRADES_PER_SEASON }, (_, i) =>
+    `<span class="trade-pip${i < used ? " is-used" : ""}"></span>`).join("");
+  const text = used > TRADES_PER_SEASON
+    ? `${used} of ${TRADES_PER_SEASON} trades used`
+    : left === 0 ? "No trades left" : `${left} ${left === 1 ? "trade" : "trades"} left`;
+  tradesLabelEl.classList.toggle("is-over", used > TRADES_PER_SEASON);
+  tradesLabelEl.title = `${used} of ${TRADES_PER_SEASON} trades used this season`;
+  tradesLabelEl.innerHTML = `<span class="trade-pips" aria-hidden="true">${pips}</span>${text}`;
+}
 
 // The injury marker, by ESPN's status (see fetchInjuries): day-to-day gets
 // a bandaged face, anything longer (out, injured reserve) an ambulance, and
@@ -239,6 +256,7 @@ async function init() {
   }
   document.title = `Tremblay Hockey Pool - ${team.name}`;
   seasonLabelEl.textContent = `${formatSeasonLabel(currentSeason)} Season`;
+  renderTradesLabel(currentSeason, team.name);
   backLinkEl.href = `./?season=${encodeURIComponent(currentSeason)}`;
 
   // The page's accents (see .has-team-color in style.css) take this team's

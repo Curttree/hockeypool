@@ -48,9 +48,10 @@
 //   later traded away, else live totals) minus (entry snapshot if
 //   acquired via trade, else zero), applied to points/goals/assists
 //   alike, so chained trades resolve without special-casing.
-//   Cap: two trades per team per season — not enforced in code, same
-//   as nobody checking rosters are exactly 20 players; just a rule to
-//   follow when editing this file.
+//   Cap: TRADES_PER_SEASON (below) per team per season — not enforced in
+//   code, same as nobody checking rosters are exactly 20 players; just a
+//   rule to follow when editing this file. The team page shows how many a
+//   team has used.
 //
 // - tradeDeadline (optional, on the season object too): the pool's trade
 //   deadline as an ISO date-time with its UTC offset, e.g.
@@ -190,6 +191,13 @@ function getTeamsForSeason(season) {
 
 function getTradesForSeason(season) {
   return (TEAMS_BY_SEASON[season] && TEAMS_BY_SEASON[season].trades) || [];
+}
+
+// How many trades the pool allows each team in a season.
+const TRADES_PER_SEASON = 2;
+
+function countTradesUsed(season, teamName) {
+  return getTradesForSeason(season).filter((trade) => trade.team === teamName).length;
 }
 
 function findTeamByName(season, name) {

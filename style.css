@@ -171,6 +171,35 @@ h1 {
   margin-bottom: 0;
 }
 .team-header .season-label { text-align: right; }
+/* Standings page: last-known numbers shown while the real ones load (see
+   paintInstant in standings.js). */
+#standings-table.is-stale tbody td.num:not(:first-child) {
+  opacity: 0.55;
+}
+/* The season label with the team's trade count under it. */
+.team-header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.trades-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: help;
+}
+.trade-pips { display: inline-flex; gap: 4px; }
+/* In the team's own color (--team-color, set by team.js; the page accent when
+   there isn't one): filled once the trade is used, hollow while it's left. */
+.trade-pip {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--team-color, var(--accent));
+  border-radius: 50%;
+}
+.trade-pip.is-used { background: var(--team-color, var(--accent)); }
+.trades-label.is-over { color: var(--danger); }
 
 /* Team page: pool team's logo beside its name. */
 #team-title {

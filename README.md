@@ -11,7 +11,7 @@ browsing/filtering NHL skater stats when drafting.
 | File | What it is |
 | --- | --- |
 | `index.html` | Standings — the pool leaderboard with a season picker, a "Tonight" column while games are on (see below), plus a "Standings Over Time" line chart |
-| `team.html` | One team's full roster and per-player stats for a given season, including a "Cost" column showing each player's point total from the prior season (the roster is listed highest cost first, and anyone traded away shows "—" in their usual place). The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
+| `team.html` | One team's full roster and per-player stats for a given season, including how many trades the team has used (`TRADES_PER_SEASON` in `teams.js`) and a "Cost" column showing each player's point total from the prior season (the roster is listed highest cost first, and anyone traded away shows "—" in their usual place). The page picks up the team's color from the "Standings Over Time" chart (`TEAM_COLORS` in `teams.js`, by the team's position in the season's list): the header's divider, a faint wash across the header, a ring on the team's avatar (which gives a quick pop as the page opens), and the line above the totals row. |
 | `games.html` | Games — today's and yesterday's regular-season NHL games that include at least one pool player: live score and period, plus each pool player's points in that game with an icon for every pool team that owns them. "Today" is the NHL's own US Eastern date, whatever timezone you're viewing from. A collapsible "Players playing tonight" header at the top counts each pool team's players in today's games (open or closed is remembered). Games still to come or in progress also get a "Watch" row of the Canadian networks showing them that reach Southwestern Ontario (see below). |
 | `awards.html` | Awards — weekly awards for each finished week, with arrows to browse earlier weeks (see "Weekly awards" below) |
 | `players.html` | Browse/search/sort/filter all NHL skaters for a season |
@@ -250,6 +250,30 @@ captures of ESPN's injury feed and page, treating a player as hurt on a
 date if a capture on or after it lists them with an injury reported by then,
 or an earlier capture gave a return date after it. Trades need a `date`
 (YYYY-MM-DD) in `teams.js` to be considered for Trade of the week.
+
+## Page load speed
+
+The Standings page needs live points and season totals before it can compute
+anything, so a few things keep the wait short:
+
+- **Instant paint** (`paintInstant` in `standings.js`): the last standings
+  this browser rendered (kept in localStorage; on a first visit, the newest
+  daily snapshot) go on screen straight away, dimmed (`.is-stale`), and the
+  real numbers replace them when they land. The real render then behaves as a
+  plain first load — nothing flashes or slides because it differs from the
+  stand-in — and if the refresh fails, a note says the saved ones are showing.
+- **Requests start early**: every page preconnects to the Worker, the
+  Standings page's scripts are `defer`red with the chart libraries *after*
+  the standings code (so they don't hold up its requests), and
+  `standings-history.json` (needed for "Tonight") is fetched in parallel with
+  the roster rather than after it.
+- **Timings**: add `?timing` to a page's URL to log each load stage
+  (`live:request`, `live:response`, `totals:response`, `roster:ready`,
+  `standings:instant`, `standings:computed`, `standings:rendered`) to the
+  console as milliseconds since navigation; `loadTimings()` lists them any
+  time, and they're `performance.mark`s, so they show in the browser's
+  Performance panel too. Worth checking on a game night to see which stage
+  dominates.
 
 ## Architecture notes
 

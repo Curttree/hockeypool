@@ -23,7 +23,21 @@
 <meta name="twitter:title" content="Tremblay Hockey Pool - Standings">
 <meta name="twitter:description" content="Standings, rosters, and player stats for the Tremblay Hockey Pool.">
 <meta name="twitter:image" content="https://curttree.github.io/hockeypool/og-image.png">
+<link rel="preconnect" href="https://hockeypool-proxy.curttremblay.workers.dev" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="style.css">
+<!-- All deferred, so nothing blocks the page, but in this order: the standings
+     code (common.js ... standings.js) runs, and starts its requests, ahead of
+     the chart libraries, which only history.js needs. -->
+<script defer src="common.js"></script>
+<script defer src="teams.js"></script>
+<script defer src="deadline.js"></script>
+<script defer src="standings.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script defer src="history.js"></script>
+<script defer src="recap.js"></script>
 </head>
 <body>
   <nav class="site-nav">
@@ -99,14 +113,5 @@
     </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-  <script src="common.js"></script>
-  <script src="teams.js"></script>
-  <script src="deadline.js"></script>
-  <script src="standings.js"></script>
-  <script src="history.js"></script>
-  <script src="recap.js"></script>
 </body>
 </html>
