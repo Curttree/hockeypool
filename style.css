@@ -1438,7 +1438,23 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
   width: auto;
   max-width: 72px;
 }
-/* Text stand-in for a network with no logo (TSN). */
+/* A TSN channel: the TSN wordmark with the channel number in a red tag. */
+.watch-tsn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.watch-tsn img { display: block; }
+.watch-tsn-num {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: #ed0000;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 18px;
+}
+/* Text stand-in for a network with no logo. */
 .watch-badge {
   padding: 1px 7px;
   border: 1px solid var(--border);
@@ -1454,6 +1470,7 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
 /* Broadcasts that are only listed for other regions — dimmed so they don't
    read as something you can watch here. */
 .game-watch.is-elsewhere .watch-logo,
+.game-watch.is-elsewhere .watch-tsn,
 .game-watch.is-elsewhere .watch-badge { opacity: 0.7; }
 
 /* Pool-team icons beside a player's name — one per team that owns them. */

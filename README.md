@@ -362,9 +362,11 @@ anything, so a few things keep the wait short:
   feeds), dimmed, closest first — hover or tap one for its source and
   region (e.g. "Sportsnet West — Western Canada"). The NHL has logos for
   Sportsnet, Prime and the big US streamers but not TSN or the regional
-  sports networks, which get a text badge showing the NHL's own network
-  code (only the unambiguous ones are expanded to a full name, in
-  `NETWORK_NAMES`). The feed can't say anything about blackouts or which
+  sports networks. TSN1-5 are drawn from the TSN wordmark
+  (`images/tsn.svg`, taken from tsn.ca — TSN publishes no per-channel
+  logos) with the channel number in a red tag; the other regional networks
+  get a text badge showing the NHL's own network code (only the
+  unambiguous ones are expanded to a full name, in `NETWORK_NAMES`). The feed can't say anything about blackouts or which
   TV package you have, so it's a best guess, not a guarantee.
 - **Daily snapshots**: see "Standings history & chart" above —
   a scheduled GitHub Action, not anything running on Cloudflare or

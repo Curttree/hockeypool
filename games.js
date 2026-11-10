@@ -181,7 +181,8 @@ function ownerIcon(season, teamName) {
 
 // Canadian networks to offer a Southwestern Ontario viewer, by the NHL's
 // network code. `logoId` is the NHL's own logo for it; the NHL has none for
-// TSN, so that gets a plain text badge instead.
+// TSN, so its channels are drawn from the TSN wordmark (images/tsn.svg, from
+// tsn.ca) plus a number tag — see watchIcon.
 const WATCH_NETWORKS = {
   SN: { name: "Sportsnet", logoId: 282 },
   SN1: { name: "Sportsnet ONE", logoId: 284 },
@@ -238,7 +239,9 @@ function broadcastLogos(networkId) {
 
 function watchOption(b, game) {
   const known = WATCH_NETWORKS[b.network];
+  const tsn = b.network.match(/^TSN([1-5])$/);
   return {
+    tsnChannel: tsn ? tsn[1] : null,
     name: (known && known.name) || NETWORK_NAMES[b.network] || b.network,
     region: broadcastRegion(b, game),
     // The NHL only attaches logos to some listings; a known network falls
@@ -273,6 +276,9 @@ function watchOptions(game) {
 
 function watchIcon(option) {
   const tip = esc(`${option.name} — ${option.region}`);
+  if (option.tsnChannel) {
+    return `<span class="watch-tsn" title="${tip}"><img src="images/tsn.svg" alt="TSN" width="44" height="11"><span class="watch-tsn-num">${option.tsnChannel}</span></span>`;
+  }
   return option.logos
     ? `<img class="watch-logo" src="${esc(themedLogoUrl(option.logos))}" alt="${esc(option.name)}" title="${tip}" height="18">`
     : `<span class="watch-badge" title="${tip}">${esc(option.badge)}</span>`;
