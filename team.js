@@ -229,6 +229,46 @@ async function init() {
       void img.offsetWidth; // flush, so clearing it below restarts the animation
       img.style.animation = "";
     };
+
+    // Idle: stay on the page for ten seconds and the avatar starts to fidget
+    // — a look to each side, a curious tilt, a little bob, one after another
+    // every dozen seconds or so. The animations are on the wrapper (the ring
+    // goes with the face), leaving the avatar's own pop and tantrum alone.
+    // Counting starts over whenever the tab is hidden, or the avatar clicked.
+    const IDLE_AFTER_MS = 10 * 1000;
+    const IDLE_GESTURES = [["look", 2400], ["tilt", 1900], ["bob", 1500]]; // keep in sync with idle-* in style.css
+    let idleTimer = null;
+    let gestureCount = 0;
+    const stopIdle = () => {
+      clearTimeout(idleTimer);
+      IDLE_GESTURES.forEach(([name]) => logoWrap.classList.remove(`idle-${name}`));
+    };
+    const armIdle = (delay) => {
+      clearTimeout(idleTimer);
+      if (document.visibilityState !== "visible" || reducedMotion()) return;
+      idleTimer = setTimeout(playIdle, delay);
+    };
+    const playIdle = () => {
+      if (logoWrap.classList.contains("angry")) return armIdle(IDLE_AFTER_MS);
+      const [name, ms] = IDLE_GESTURES[gestureCount++ % IDLE_GESTURES.length];
+      logoWrap.classList.add(`idle-${name}`);
+      idleTimer = setTimeout(() => {
+        logoWrap.classList.remove(`idle-${name}`);
+        armIdle(11000 + Math.random() * 6000);
+      }, ms);
+    };
+    document.addEventListener("visibilitychange", () => {
+      stopIdle();
+      armIdle(IDLE_AFTER_MS);
+    });
+    // Registered ahead of the click handler below, so a click ends any
+    // fidget before the avatar's own animation restarts.
+    logoWrap.addEventListener("click", () => {
+      stopIdle();
+      armIdle(IDLE_AFTER_MS + 2000); // clear of the pop or tantrum
+    });
+    armIdle(IDLE_AFTER_MS);
+
     logoWrap.addEventListener("click", () => {
       if (reducedMotion()) return;
       const now = performance.now();

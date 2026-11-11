@@ -294,6 +294,28 @@ h1 {
   70% { transform: scale(1.08) translateX(2px) rotate(-2deg); filter: sepia(0.6) saturate(3) hue-rotate(-40deg); }
   85% { transform: scale(1.02); filter: sepia(0.2) saturate(1.5) hue-rotate(-20deg); }
 }
+/* Idle (ten seconds on the page, team.js): a few small fidgets, each on the
+   wrapper so the ring moves with the face. Keep the durations in sync with
+   IDLE_GESTURES there. */
+.team-title-logo-wrap.idle-look { animation: idle-look 2.4s ease-in-out 1; }
+.team-title-logo-wrap.idle-tilt { animation: idle-tilt 1.9s ease-in-out 1; }
+.team-title-logo-wrap.idle-bob { animation: idle-bob 1.5s ease-in-out 1; }
+@keyframes idle-look {
+  0%, 100% { transform: none; }
+  18%, 38% { transform: translateX(-2px) rotate(-6deg); }
+  58%, 78% { transform: translateX(2px) rotate(6deg); }
+}
+@keyframes idle-tilt {
+  0%, 100% { transform: none; }
+  25%, 65% { transform: rotate(-10deg) translateY(1px); }
+}
+@keyframes idle-bob {
+  0%, 100% { transform: none; }
+  20% { transform: translateY(-3px) scale(1.03); }
+  40% { transform: translateY(0); }
+  60% { transform: translateY(-2px) scale(1.02); }
+  80% { transform: translateY(0); }
+}
 .avatar-fx {
   position: absolute;
   z-index: 1;
@@ -707,6 +729,131 @@ tbody tr:hover { background: var(--row-hover); }
    green as the recap banner's rank-up arrows. */
 .tonight { color: var(--muted); }
 .tonight.scored { color: #2fb56a; font-weight: 700; }
+
+/* While tonight's numbers are still on their way (tonightLoading in
+   standings.js) the column holds bouncing dots, and the team faces think —
+   a head tilt and a thought bubble, staggered row to row. */
+.tonight-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 1em;
+}
+.tonight-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+  animation: tonight-dot 1.1s ease-in-out infinite;
+}
+/* The dots are the one thing on a stand-in table that isn't a stale number. */
+#standings-table.is-stale tbody td.num.tonight.is-loading { opacity: 1; }
+.tonight-dots i:nth-child(2) { animation-delay: 0.15s; }
+.tonight-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes tonight-dot {
+  0%, 60%, 100% { transform: none; opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+#standings-table.is-thinking .team-logo-wrap .team-logo { animation: logo-think 2.4s ease-in-out infinite; }
+#standings-table.is-thinking .team-logo-wrap::after {
+  content: "\1F4AD";
+  position: absolute;
+  top: -9px;
+  right: -11px;
+  font-size: 13px;
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0;
+  animation: fx-think 2.4s ease-in-out infinite;
+}
+#standings-table.is-thinking tbody tr:nth-child(3n+2) .team-logo-wrap .team-logo,
+#standings-table.is-thinking tbody tr:nth-child(3n+2) .team-logo-wrap::after { animation-delay: 0.45s; }
+#standings-table.is-thinking tbody tr:nth-child(3n) .team-logo-wrap .team-logo,
+#standings-table.is-thinking tbody tr:nth-child(3n) .team-logo-wrap::after { animation-delay: 0.9s; }
+@keyframes logo-think {
+  0%, 100% { transform: none; }
+  20% { transform: rotate(-8deg) translateY(-1px); }
+  50% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+}
+@keyframes fx-think {
+  0%, 100% { opacity: 0; transform: translateY(3px) scale(0.6); }
+  25%, 70% { opacity: 1; transform: translateY(-2px) scale(1); }
+}
+
+/* The numbers replacing the dots fade up into place... */
+.tonight-fill td.tonight .tonight-val { animation: tonight-fill 0.45s ease-out; }
+@keyframes tonight-fill {
+  from { opacity: 0; transform: translateY(5px); }
+}
+
+/* ...and a column that wasn't expected grows in (its text and padding) rather
+   than popping in and shoving the rest sideways. */
+.tonight-grow .tonight-val {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  white-space: nowrap;
+  animation: tonight-grow 0.5s ease-out;
+}
+.tonight-grow td.tonight,
+.tonight-grow #tonight-header { animation: tonight-pad 0.5s ease-out; }
+@keyframes tonight-grow {
+  from { max-width: 0; opacity: 0; }
+  to { max-width: 6em; opacity: 1; }
+}
+@keyframes tonight-pad {
+  from { padding-left: 0; padding-right: 0; }
+}
+
+/* Tonight moods (playTonightMoods in standings.js): a small hop for the best
+   night, a sigh for the worst — one gentle pass each. Keep the duration in sync
+   with TONIGHT_MOOD_MS. */
+.tonight-happy .team-logo { animation: logo-glad 1.5s ease-in-out 1; }
+.tonight-sigh .team-logo { animation: logo-sigh 2.2s ease-in-out 1; }
+.tonight-happy .mood-fx {
+  top: -6px;
+  right: -8px;
+  animation: fx-sparkle 1.3s ease-out 0.15s 1;
+}
+.tonight-sigh .mood-fx {
+  top: 13px;
+  right: -13px;
+  animation: fx-puff 2.2s ease-in-out 1;
+}
+@keyframes logo-glad {
+  0%, 100% { transform: none; }
+  25% { transform: translateY(-4px) scale(1.07); }
+  45% { transform: translateY(0) scale(1.02); }
+  65% { transform: translateY(-1px) rotate(-4deg); }
+  85% { transform: rotate(3deg); }
+}
+/* a breath in, then it all goes out of them */
+@keyframes logo-sigh {
+  0%, 100% { transform: none; filter: none; }
+  25% { transform: translateY(-1px) scale(1.06); filter: none; }
+  55%, 80% { transform: translateY(2px) rotate(-4deg) scale(0.94); filter: saturate(0.7) brightness(0.92); }
+}
+@keyframes fx-puff {
+  0%, 40% { opacity: 0; transform: translateX(-3px) scale(0.6); }
+  55% { opacity: 0.85; transform: translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateX(9px) scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tonight-dots i { animation: none; opacity: 0.6; }
+  .tonight-happy .team-logo, .tonight-sigh .team-logo { animation: none; }
+  .tonight-happy .mood-fx, .tonight-sigh .mood-fx { display: none; }
+  #standings-table.is-thinking .team-logo-wrap .team-logo { animation: none; }
+  #standings-table.is-thinking .team-logo-wrap::after { display: none; }
+  .tonight-fill td.tonight .tonight-val,
+  .tonight-grow .tonight-val,
+  .tonight-grow td.tonight,
+  .tonight-grow #tonight-header { animation: none; }
+}
+
 
 /* On a phone the table already scrolls sideways, and the extra column would
    sit half cut off at the edge (under the scroll fade) — so trim the
@@ -1387,6 +1534,7 @@ tbody tr.row-linked > td:first-child { box-shadow: inset 4px 0 0 var(--link-colo
 
 @media (prefers-reduced-motion: reduce) {
   .score-pop, .leader-crown, .rank-value.medal-shine::after,
+  .team-title-logo-wrap.idle-look, .team-title-logo-wrap.idle-tilt, .team-title-logo-wrap.idle-bob,
   .recap, .recap-item, .team-title-logo,
   .deadline-notice, .deadline-notice-icon,
   #team-table tr.row-in, .scorer-glow, .avatar-fx,

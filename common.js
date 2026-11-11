@@ -314,22 +314,33 @@ async function fetchSeasonTotals(season, before) {
 // if the live response turns out to have moved on.
 const LIVE_WINDOW_KEY = "nhl-points-live-window";
 
+// Also kept: the current date's games (state and start time), so a later
+// visit can tell whether tonight's games should be under way by now — see
+// expectingTonight in standings.js.
 function rememberLiveWindow(live) {
   try {
     const dates = live.dates || [];
-    localStorage.setItem(LIVE_WINDOW_KEY, JSON.stringify({ from: live.from, currentDate: dates[dates.length - 1] || null }));
+    const currentDate = dates[dates.length - 1] || null;
+    const games = (live.games || [])
+      .filter((g) => g.date === currentDate)
+      .map((g) => ({ state: g.state, startTimeUTC: g.startTimeUTC }));
+    localStorage.setItem(LIVE_WINDOW_KEY, JSON.stringify({ from: live.from, currentDate, games }));
   } catch {
     // ignore (storage disabled)
   }
 }
 
-function guessLiveFrom() {
+function loadLiveWindow() {
   try {
-    const saved = JSON.parse(localStorage.getItem(LIVE_WINDOW_KEY) || "null");
-    return saved && saved.from && saved.currentDate === easternDate() ? saved.from : null;
+    return JSON.parse(localStorage.getItem(LIVE_WINDOW_KEY) || "null");
   } catch {
     return null;
   }
+}
+
+function guessLiveFrom() {
+  const saved = loadLiveWindow();
+  return saved && saved.from && saved.currentDate === easternDate() ? saved.from : null;
 }
 
 async function loadRosterForSeason(season) {

@@ -180,7 +180,10 @@ roster rows settle in one after another, every score counts up from 0
 "Tonight" or "Last Night" gets a brief green glow on that number. The
 avatar pops on arrival and again whenever it's clicked or tapped — and
 if you keep at it (five clicks in a row, each within 0.8s of the last) it
-gets angry: red ring, flushed and shaking, with 💢 popping off it. Live
+gets angry: red ring, flushed and shaking, with 💢 popping off it. Stay 
+on the page for ten seconds and it starts to fidget — a look to each side, 
+a curious tilt, a little bob, one every dozen seconds or so (the count starts 
+over if the tab is hidden or the avatar clicked). Live
 changes while the page is open use the Standings page's goal light (red,
 for a goal) and assist light (blue, for an assist only) on the player's
 row, and count the score up from what it just was. It's all skipped with
@@ -265,6 +268,18 @@ anything, so a few things keep the wait short:
   real numbers replace them when they land. The real render then behaves as a
   plain first load — nothing flashes or slides because it differs from the
   stand-in — and if the refresh fails, a note says the saved ones are showing.
+- **Tonight column while loading**: if tonight's games should be under way
+  (the column was showing the last time this browser rendered tonight, or
+  the last live fetch had a game whose start time has passed — see
+  `expectingTonight` in `standings.js`), the stand-in table already has the
+  Tonight column, holding bouncing dots, and the team faces "think" (a head
+  tilt and a thought bubble) until the real numbers arrive; the values then
+  fade in. A column that wasn't expected grows in instead of popping. If the
+  refresh fails, the dots become dashes. Once tonight's totals are on screen 
+  the faces react to them (`playTonightMoods`): the best night so far gets a 
+  small hop and a sparkle, the worst a sigh (a deep breath, a slump and a 
+  puff) — once, gently, nothing if every team is level, and not for a team 
+  already playing a rank-change mood.
 - **Requests start early**: every page preconnects to the Worker, the
   Standings page's scripts are `defer`red with the chart libraries *after*
   the standings code (so they don't hold up its requests), and

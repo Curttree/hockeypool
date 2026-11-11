@@ -130,6 +130,57 @@ async function latestSnapshotDate(season) {
   return lastSnapshotDate.season === season ? lastSnapshotDate.date : null;
 }
 
+// While the real numbers load after an instant paint (see paintInstant), the
+// Tonight column — if tonight's games should be under way — shows bouncing dots
+// in place of values, and the team faces "think". Without that the column
+// would pop in once the data arrives and shove everything right.
+let tonightLoading = false;
+// Whether the last render was showing those placeholders, so the values that
+// replace them can fade in.
+let lastRenderLoadingTonight = false;
+const TONIGHT_SHOWN_KEY = "nhl-points-tonight-shown";
+
+// Which night the Tonight column was last on screen for (null when it
+// wasn't), so the next visit that night knows to expect it.
+function rememberTonightShown(night) {
+  try {
+    if (night) localStorage.setItem(TONIGHT_SHOWN_KEY, night);
+    else localStorage.removeItem(TONIGHT_SHOWN_KEY);
+  } catch {
+    // ignore (storage disabled)
+  }
+}
+
+// Whether tonight's numbers should be there once the data arrives. Either the
+// column was showing the last time this browser rendered tonight, or the
+// games seen on the last live fetch include one whose start time has passed.
+// A first visit of the night (nothing saved) can't tell, and the column then
+// grows in (see renderStandings) instead.
+function expectingTonight() {
+  const night = currentNightDate();
+  try {
+    if (localStorage.getItem(TONIGHT_SHOWN_KEY) === night) return true;
+  } catch {
+    // ignore (storage disabled)
+  }
+  const saved = loadLiveWindow();
+  if (!saved || saved.currentDate !== night) return false;
+  const now = Date.now();
+  return (saved.games || []).some((g) => g.state !== "FUT" || (g.startTimeUTC && Date.parse(g.startTimeUTC) <= now));
+}
+
+// The loading placeholders become dashes (the data didn't come) and the faces
+// stop thinking.
+function stopTonightLoading() {
+  tonightLoading = false;
+  lastRenderLoadingTonight = false;
+  table.classList.remove("is-thinking");
+  tbody.querySelectorAll("td.tonight.is-loading").forEach((td) => {
+    td.classList.remove("is-loading");
+    td.textContent = "—";
+  });
+}
+
 // The night to tally into the "Tonight" column, or null when it shouldn't
 // show: no game of the current night has started yet (the live data lists
 // a player under a night from the moment that game starts, even at 0
@@ -388,6 +439,42 @@ function playMoods(moods) {
   });
 }
 
+// Tonight moods: once tonight's totals are on screen, the team with the best
+// night so far perks up (a little hop and a sparkle) and the teams with the
+// worst sigh (a deep breath, a slump and a puff) — once, and gently. Nothing
+// plays if every team is level, and a team already playing a rank-change mood
+// is left to that.
+const TONIGHT_MOOD_DELAY_MS = 700; // after the numbers settle, and after the rank moods start
+const TONIGHT_MOOD_MS = 2400; // keep in sync with the tonight-* animations in style.css
+
+function playTonightMoods(standings) {
+  const totals = standings.filter((t) => t.tonight != null).map((t) => t.tonight);
+  if (totals.length < 2) return;
+  const best = Math.max(...totals);
+  const worst = Math.min(...totals);
+  if (best === worst) return;
+
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    const name = tr.querySelector(".team-name a")?.textContent;
+    const wrap = tr.querySelector(".team-logo-wrap");
+    const team = name && standings.find((t) => t.name === name);
+    if (!wrap || !team || team.tonight == null || wrap.matches(".mood-happy, .mood-sad")) return;
+    const mood = team.tonight === best ? "happy" : team.tonight === worst ? "sigh" : null;
+    if (!mood) return;
+
+    const fx = document.createElement("span");
+    fx.className = "mood-fx";
+    fx.setAttribute("aria-hidden", "true");
+    fx.textContent = mood === "happy" ? "\u2728" : "\u{1F4A8}";
+    wrap.appendChild(fx);
+    wrap.classList.add(`tonight-${mood}`);
+    setTimeout(() => {
+      wrap.classList.remove(`tonight-${mood}`);
+      fx.remove();
+    }, TONIGHT_MOOD_MS);
+  });
+}
+
 // ?preview-moods in the URL plays both moods on load (top half happy,
 // bottom half sad) — for seeing the animations without waiting for a
 // real rank change.
@@ -606,6 +693,7 @@ function renderStandings(standings, season) {
   // load — previousScores is null exactly when this is the latter (see
   // loadAndRender), same signal the score-flash effect keys off of.
   const oldPositions = previousScores ? captureRowPositions() : null;
+  const freshLoad = !previousScores;
 
   // Crown + medal shine for every team in first — including ties — once
   // the leaders have actually scored (not for everyone sitting at 0
@@ -614,11 +702,29 @@ function renderStandings(standings, season) {
 
   // Every team has a `tonight` number or none does (see computeStandings).
   const showTonight = standings.some((t) => t.tonight != null);
+  // Waiting on tonight's numbers: the column is there already, with dots.
+  const loadingTonight = tonightLoading && !showTonight;
   // Missing only if a browser pairs a cached older index.html with this
   // script right after a deploy — then there's just no column.
-  const hasTonight = showTonight && Boolean(tonightHeader);
+  const hasTonight = (showTonight || loadingTonight) && Boolean(tonightHeader);
+  // How the column arrives: growing in if it wasn't there a moment ago on a
+  // table already on screen (a poll, or a first visit that couldn't tell it
+  // was coming); values fading in where there were dots.
+  const columnGrows = hasTonight && !table.hidden && !table.classList.contains("has-tonight");
+  const valuesFadeIn = hasTonight && !loadingTonight && lastRenderLoadingTonight;
   if (tonightHeader) tonightHeader.hidden = !hasTonight;
   table.classList.toggle("has-tonight", hasTonight); // phone padding tweak in style.css
+  table.classList.toggle("is-thinking", loadingTonight);
+  if (columnGrows || valuesFadeIn) {
+    const cls = columnGrows ? "tonight-grow" : "tonight-fill";
+    table.classList.add(cls);
+    setTimeout(() => table.classList.remove(cls), 700);
+  }
+  // Tonight's totals just became available: a fresh load, the dots giving way
+  // to numbers, or the column appearing.
+  if (showTonight && !previewMode && (freshLoad || columnGrows || valuesFadeIn)) {
+    setTimeout(() => playTonightMoods(standings), TONIGHT_MOOD_DELAY_MS);
+  }
   const columnCount = hasTonight ? 7 : 6;
 
   tbody.innerHTML = "";
@@ -666,7 +772,9 @@ function renderStandings(standings, season) {
       <td class="team-logo-col">${logo}</td>
       <td class="team-name"><a href="${teamHref}">${team.name}</a>${warning}</td>
       <td class="num score"><span class="score-num">${(scoreIncreased ? prevScore : team.score).toLocaleString()}</span></td>
-      ${hasTonight ? `<td class="num tonight${team.tonight > 0 ? " scored" : ""}">+${team.tonight.toLocaleString()}</td>` : ""}
+      ${!hasTonight ? "" : loadingTonight
+        ? `<td class="num tonight is-loading" aria-label="Tonight's points are loading"><span class="tonight-dots" aria-hidden="true"><i></i><i></i><i></i></span></td>`
+        : `<td class="num tonight${team.tonight > 0 ? " scored" : ""}"><span class="tonight-val">+${team.tonight.toLocaleString()}</span></td>`}
       <td class="num">${behindNext}</td>
       <td class="num">${behind1st}</td>
     `;
@@ -713,6 +821,8 @@ function renderStandings(standings, season) {
   statusEl.hidden = true;
   table.hidden = false;
   table.classList.remove("is-stale"); // see paintInstant
+  lastRenderLoadingTonight = loadingTonight;
+  if (!loadingTonight && !previewMode) rememberTonightShown(showTonight ? currentNightDate() : null);
 }
 
 function buildSeasonOptions() {
@@ -794,6 +904,7 @@ async function paintInstant(season, isStale) {
   // Rendering saves the ranks it shows, which would replace the ones from
   // the last real visit that the rank moods compare against.
   const savedRanks = loadCachedRanks(season);
+  tonightLoading = expectingTonight();
   renderStandings(standings, season);
   if (savedRanks) saveCachedRanks(season, savedRanks);
   table.classList.add("is-stale");
@@ -838,6 +949,7 @@ async function loadAndRender(isInitialLoad) {
     const tonightDate = previewMode ? null : await tonightDateFor(currentSeason, roster);
     const standings = computeStandings(currentSeason, getTeamsForSeason(currentSeason), roster, previousRoster, tonightDate);
     freshDone = true;
+    tonightLoading = false;
     markTiming("standings:computed");
     // Read before rendering — renderStandings overwrites the cache.
     // ?preview-crown pretends the last visit had the runner-up in front, to
@@ -867,6 +979,7 @@ async function loadAndRender(isInitialLoad) {
     // A background poll failing shouldn't disrupt an already-rendered
     // page — only surface the error if this was the initial load.
     if (isInitialLoad) {
+      stopTonightLoading();
       statusEl.hidden = false;
       statusEl.classList.remove("loading-pulse");
       statusEl.textContent = painted
