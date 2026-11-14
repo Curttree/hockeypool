@@ -115,7 +115,7 @@ const TEAMS_BY_SEASON = {
         players: ["Connor McDavid", "Nathan MacKinnon", "William Nylander", "Mika Zibanejad", "Filip Forsberg", "Juraj Slafkovský",
           "Nikolaj Ehlers", "Andrei Svechnikov", "Kirill Marchenko", "Miro Heiskanen", "Mikhail Sergachev", "Shayne Gostisbehere", "Oskar Sundqvist",
           "Uvis Balinskis", "Juuso Parssinen", "Dominik Shine", "Vladislav Kolyachonok", "Ivan Miroshnichenko", "Maksim Tsyplakov",
-          "Kirill Kudryavtsev"
+          "Kirill Kudryavtsev", "Kasperi Kapanen", "Declan Carlile"
         ]
     },
     {
@@ -175,6 +175,24 @@ const TEAMS_BY_SEASON = {
         date: "2026-11-03",
         playerOut: { name: "Macklin Celebrini", points: 16, goals: 5, assists: 11 },
         playerIn: { name: "Connor McDavid", points: 39, goals: 9, assists: 30 },
+      },
+      // Gayle sends Oskar Sundqvist out for Kasperi Kapanen (season totals at
+      // the time of the trade, 2026-11-14). Sundqvist hasn't played this
+      // season, so his line is empty.
+      {
+        team: "Gayle",
+        date: "2026-11-14",
+        playerOut: { name: "Oskar Sundqvist", points: 0, goals: 0, assists: 0 },
+        playerIn: { name: "Kasperi Kapanen", points: 10, goals: 5, assists: 5 },
+      },
+      // Gayle sends Dominik Shine out for Declan Carlile (season totals at the
+      // time of the trade, 2026-11-14). Shine hasn't played this season, so
+      // his line is empty.
+      {
+        team: "Gayle",
+        date: "2026-11-14",
+        playerOut: { name: "Dominik Shine", points: 0, goals: 0, assists: 0 },
+        playerIn: { name: "Declan Carlile", points: 6, goals: 3, assists: 3 },
       },
     ],
     tradeDeadline: "2027-03-01T15:00:00-05:00",
