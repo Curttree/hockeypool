@@ -658,6 +658,109 @@
           "idOut": 8484801
         }
       }
+    },
+    {
+      "week": 7,
+      "weekStart": "2026-11-08",
+      "weekEnd": "2026-11-14",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Rick",
+            "Anmol"
+          ],
+          "points": 43,
+          "next": [
+            {
+              "team": "Curtis",
+              "points": 39
+            },
+            {
+              "team": "Hannah",
+              "points": 39
+            }
+          ]
+        },
+        "biggestMover": {
+          "gain": 1,
+          "teams": [
+            {
+              "team": "Anmol",
+              "from": 6,
+              "to": 5
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Kyle Connor",
+              "team": "Anmol",
+              "id": 8478398
+            }
+          ],
+          "points": 7,
+          "goals": 4,
+          "assists": 3,
+          "next": [
+            {
+              "player": "Cole Perfetti",
+              "team": "Hannah",
+              "value": 7
+            },
+            {
+              "player": "Nikita Kucherov",
+              "team": "Luke",
+              "value": 6
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "Nils Hoglander",
+              "team": "Hannah",
+              "id": 8481535
+            }
+          ],
+          "points": 4,
+          "cost": 5,
+          "next": [
+            {
+              "player": "Cole Perfetti",
+              "team": "Hannah",
+              "value": 7
+            },
+            {
+              "player": "Pierre-Luc Dubois",
+              "team": "Curtis",
+              "value": 3
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Nathan MacKinnon",
+              "team": "Hannah",
+              "id": 8477492
+            },
+            {
+              "player": "Nathan MacKinnon",
+              "team": "Gayle",
+              "id": 8477492
+            },
+            {
+              "player": "Nathan MacKinnon",
+              "team": "Luke",
+              "id": 8477492
+            }
+          ],
+          "points": 0,
+          "cost": 127,
+          "games": 2
+        }
+      }
     }
   ]
 }
