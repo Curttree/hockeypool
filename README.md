@@ -315,7 +315,13 @@ anything, so a few things keep the wait short:
   on GitHub Pages won't see new routes until you do.
 - **Client-side caching**: `common.js` caches the full-season roster
   and injury data in `sessionStorage` for 5 minutes, shared across all
-  pages in the same tab session.
+  pages in the same tab session. The bulk of the roster — season totals 
+  from before the live window — is made of finished games, so it's also 
+  kept per (season, window start) in memory and `localStorage` for 6 hours 
+  (`fetchSeasonTotals`): a refresh while games are on is then just the 
+  small `/api/live` request instead of nine, and so is a returning 
+  visitor's first load. A new day moves the window start, so yesterday's 
+  entry is never used again.
 - **Live polling**: Standings and team pages auto-refresh every 60
   seconds while the tab is visible — cheap, since the actual network
   fetch only happens when the 5-minute cache above has expired. The Games

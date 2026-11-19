@@ -296,10 +296,68 @@ async function fetchCompletedSeason(season) {
 
 // Season totals from the Worker, optionally only from games before
 // `before` (YYYY-MM-DD) — see fetchLive.
+//
+// The totals from before the live window (`before` = live.from) are made
+// of finished games, so they don't move for the rest of the day — yet every
+// roster refresh (every couple of minutes during games) used to download
+// them again, a page request each. They're kept per (season, window start),
+// in memory and in localStorage, for TOTALS_TTL_MS: a refresh is then just
+// the live request, and so is a returning visitor's first load. A new day
+// moves the window start, so yesterday's entry is simply never asked for
+// again (and is cleared when today's is saved). Totals without a window
+// (the offseason, or no live data) are fetched every time, as before.
+const TOTALS_STORE_KEY_PREFIX = "nhl-points-totals:v1:";
+const TOTALS_TTL_MS = 6 * 60 * 60 * 1000;
+const totalsRequests = new Map(); // "season|before" -> { at, request }
+
+function loadStoredTotals(season, before) {
+  try {
+    const { savedAt, players } = JSON.parse(localStorage.getItem(`${TOTALS_STORE_KEY_PREFIX}${season}:${before}`) || "null") || {};
+    return Date.now() - savedAt < TOTALS_TTL_MS && Array.isArray(players) && players.length ? players : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeTotals(season, before, players) {
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(`${TOTALS_STORE_KEY_PREFIX}${season}:`))
+      .forEach((key) => localStorage.removeItem(key));
+    localStorage.setItem(`${TOTALS_STORE_KEY_PREFIX}${season}:${before}`, JSON.stringify({ savedAt: Date.now(), players }));
+  } catch {
+    // ignore (storage full/disabled) — it's just fetched again next time
+  }
+}
+
+// Only the fields the site uses, so what's stored (and what comes back) is
+// the same whether it was fetched or remembered.
+const trimPlayers = (players) => players.map((p) => Object.fromEntries(SEASON_FILE_FIELDS.map((k) => [k, p[k]])));
+
 async function fetchSeasonTotals(season, before) {
-  const players = await fetchPlayersPaged({ season, ...(before ? { before } : {}) });
-  markTiming(before ? "totals:response" : "season:response");
-  return players;
+  if (!before) {
+    const players = await fetchPlayersPaged({ season });
+    markTiming("season:response");
+    return players;
+  }
+
+  const key = `${season}|${before}`;
+  const kept = totalsRequests.get(key);
+  if (kept && Date.now() - kept.at < TOTALS_TTL_MS) return kept.request;
+
+  const stored = loadStoredTotals(season, before);
+  if (stored) markTiming("totals:cached");
+  const request = stored
+    ? Promise.resolve(stored)
+    : fetchPlayersPaged({ season, before }).then((players) => {
+      const trimmed = trimPlayers(players);
+      storeTotals(season, before, trimmed);
+      markTiming("totals:response");
+      return trimmed;
+    });
+  totalsRequests.set(key, { at: Date.now(), request });
+  request.catch(() => totalsRequests.delete(key)); // a failure isn't remembered
+  return request;
 }
 
 // Every skater matching `filters` (season, and optionally before=YYYY-MM-DD),
