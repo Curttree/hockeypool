@@ -5,6 +5,7 @@
 // page load. A finished season never changes, so this only ever writes a
 // file once — the first run after a season wraps up.
 import { existsSync, writeFileSync, mkdirSync } from "fs";
+import { fetchAllSkaters } from "./nhl-skaters.mjs";
 
 // Same fields common.js keeps (SEASON_FILE_FIELDS).
 const FIELDS = ["playerId", "skaterFullName", "lastName", "teamAbbrevs", "positionCode", "gamesPlayed", "goals", "assists", "points"];
@@ -24,24 +25,11 @@ if (existsSync(path)) {
   process.exit(0);
 }
 
-const params = new URLSearchParams({
-  isAggregate: "false",
-  isGame: "false",
-  sort: JSON.stringify([{ property: "skaterFullName", direction: "ASC" }, { property: "playerId", direction: "ASC" }]),
-  start: "0",
-  limit: "-1",
-  factCayenneExp: "gamesPlayed>=1",
-  cayenneExp: `gameTypeId=2 and seasonId=${season}`,
-});
-const res = await fetch(`https://api.nhle.com/stats/rest/en/skater/summary?${params}`, {
-  headers: { "User-Agent": "Mozilla/5.0" },
-});
-if (!res.ok) throw new Error(`NHL stats API returned ${res.status}`);
-const data = await res.json();
-const players = (data.data || []).map((p) => Object.fromEntries(FIELDS.map((k) => [k, p[k]])));
+const { total, rows } = await fetchAllSkaters({ cayenneExp: `gameTypeId=2 and seasonId=${season}` });
+const players = rows.map((p) => Object.fromEntries(FIELDS.map((k) => [k, p[k]])));
 // A partial or empty response would be saved forever, so refuse it.
-if (players.length < 500 || players.length !== data.total) {
-  throw new Error(`Unexpected response: ${players.length} players of ${data.total}`);
+if (players.length < 500 || players.length !== total) {
+  throw new Error(`Unexpected response: ${players.length} players of ${total}`);
 }
 
 mkdirSync("../../data", { recursive: true });

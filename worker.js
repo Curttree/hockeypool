@@ -87,6 +87,9 @@ async function fetchPlayers({ season, limit, start, search, maxPoints, before, s
   if (sortProperty !== "points") {
     sortClauses.push({ property: "points", direction: "DESC" });
   }
+  // A key no two players share, last, so the pages a client asks for one at a
+  // time (the NHL caps a request at 100 rows) can never overlap or leave gaps.
+  sortClauses.push({ property: "playerId", direction: "ASC" });
 
   const params = new URLSearchParams({
     isAggregate: "false",

@@ -372,7 +372,10 @@ const MOOD_MS = 3000;
 // returning visitor's logos react only to what changed since *their* last
 // look. localStorage can be missing or blocked (private windows, etc.) —
 // that just means no moods, never a broken page.
-const RANKS_CACHE_KEY_PREFIX = "hockeypool-ranks:";
+// (v2: browsers that loaded the site while the NHL's 100-row cap cut every
+// roster short saved the wrong standings and ranks — see fetchPlayersPaged in
+// common.js — so those entries are left behind.)
+const RANKS_CACHE_KEY_PREFIX = "hockeypool-ranks:v2:";
 
 function loadCachedRanks(season) {
   try {
@@ -850,7 +853,7 @@ let currentSeason = null;
 // browser rendered, or on a first visit the newest daily snapshot — shown
 // dimmed (.is-stale) until the real numbers land. Only the numbers matter
 // for that, so what's kept is just each team's computed standings.
-const LAST_STANDINGS_KEY_PREFIX = "nhl-points-last-standings:";
+const LAST_STANDINGS_KEY_PREFIX = "nhl-points-last-standings:v2:"; // v2: see RANKS_CACHE_KEY_PREFIX
 
 function saveLastStandings(season, standings) {
   if (previewMode) return; // never keep ?preview-fx's made-up numbers

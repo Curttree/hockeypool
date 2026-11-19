@@ -222,13 +222,12 @@ function mergeLivePlayers(basePlayers, livePlayers, knownPlayers) {
   return [...byId.values()];
 }
 
-// Fetches the full-season roster (~900+ skaters) in a single request —
-// limit=-1 tells the NHL API to return every row. Don't paginate this:
-// the proxy has no stable unique sort key (it silently ignores unknown
-// ones like "id"), and without one, separately-fetched pages overlap, so
-// some players get duplicated and others dropped entirely. For the season
-// being played, live game points (fetchLive) are merged in when the
-// backend supports it.
+// Fetches the full-season roster (~900+ skaters). The NHL's stats API now
+// answers at most 100 rows a request whatever `limit` says (limit=-1 used to
+// return every row, and a roster that was silently cut to its first 100
+// names made every score wrong), so it comes in pages — see
+// fetchPlayersPaged. For the season being played, live game points
+// (fetchLive) are merged in when the backend supports it.
 //
 // Concurrent calls for the same season (e.g. the standings table and the
 // chart on page load) share one in-flight request instead of each
@@ -298,11 +297,40 @@ async function fetchCompletedSeason(season) {
 // Season totals from the Worker, optionally only from games before
 // `before` (YYYY-MM-DD) — see fetchLive.
 async function fetchSeasonTotals(season, before) {
-  const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC" });
-  if (before) params.set("before", before);
-  const { players } = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+  const players = await fetchPlayersPaged({ season, ...(before ? { before } : {}) });
   markTiming(before ? "totals:response" : "season:response");
   return players;
+}
+
+// Every skater matching `filters` (season, and optionally before=YYYY-MM-DD),
+// fetched a page at a time — the NHL's stats API caps a request at 100 rows.
+// The first page says how many there are in all; the rest are fetched
+// together. Ordered by name (then points, then the Worker's own id tiebreak) so
+// the pages tile exactly, and a player who still came back twice or not at
+// all is caught by the count check below: the whole fetch is tried once more,
+// then fails loudly rather than score anyone from a partial roster.
+const PLAYERS_PAGE_SIZE = 100;
+
+async function fetchPlayersPaged(filters, attempt = 1) {
+  const page = async (start) => {
+    const params = new URLSearchParams({ ...filters, limit: PLAYERS_PAGE_SIZE, start, sort: "player", dir: "ASC" });
+    const body = await fetch(`${API_BASE}/api/players?${params}`).then((r) => r.json());
+    if (!Array.isArray(body.players)) throw new Error(body.error || "No players in the response");
+    return body;
+  };
+  const first = await page(0);
+  const total = first.total || first.players.length;
+  const starts = [];
+  for (let start = PLAYERS_PAGE_SIZE; start < total; start += PLAYERS_PAGE_SIZE) starts.push(start);
+  const rest = await Promise.all(starts.map(page));
+
+  const byId = new Map();
+  [first, ...rest].forEach((body) => body.players.forEach((p) => byId.set(p.playerId, p)));
+  if (byId.size < total) {
+    if (attempt < 2) return fetchPlayersPaged(filters, attempt + 1);
+    throw new Error(`Only ${byId.size} of ${total} players came back`);
+  }
+  return [...byId.values()];
 }
 
 // ---- Speculative season-totals fetch --------------------------------------

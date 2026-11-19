@@ -8,9 +8,9 @@
 // hadn't finished catching up on the day before it the first time.
 // Built-in fetch only — no dependencies.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { fetchAllSkaters } from "./nhl-skaters.mjs";
 
 const DATA_PATH = "../../data/pace-totals.json";
-const STATS_URL = "https://api.nhle.com/stats/rest/en/skater/summary";
 
 // Keep in sync with history.js (PACE_WINDOWS / paceBoundaries).
 const PACE_WINDOWS = 5;
@@ -42,20 +42,7 @@ export function seasonInProgress(now = new Date()) {
 
 // playerId -> [points, gamesPlayed] for games before `date`.
 async function fetchTotalsBefore(season, date) {
-  const params = new URLSearchParams({
-    isAggregate: "false",
-    isGame: "false",
-    sort: JSON.stringify([{ property: "playerId", direction: "ASC" }]),
-    start: "0",
-    limit: "-1",
-    factCayenneExp: "gamesPlayed>=1",
-    cayenneExp: `gameTypeId=2 and seasonId=${season} and gameDate<"${date}"`,
-  });
-  const res = await fetch(`${STATS_URL}?${params}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-  if (!res.ok) throw new Error(`NHL stats API returned ${res.status} for ${date}`);
-  const data = await res.json();
-  const rows = data.data || [];
-  if (rows.length !== data.total) throw new Error(`Partial response for ${date}: ${rows.length} of ${data.total}`);
+  const { rows } = await fetchAllSkaters({ cayenneExp: `gameTypeId=2 and seasonId=${season} and gameDate<"${date}"` });
   return Object.fromEntries(rows.map((p) => [p.playerId, [p.points, p.gamesPlayed]]));
 }
 

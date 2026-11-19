@@ -24,10 +24,8 @@ const awardTotalsCache = new Map(); // "season|date" -> Promise<Map<playerId, st
 function fetchAwardTotals(season, date) {
   const key = `${season}|${date}`;
   if (!awardTotalsCache.has(key)) {
-    const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC", before: date });
-    const request = fetch(`${API_BASE}/api/players?${params}`)
-      .then((r) => r.json())
-      .then(({ players }) => new Map(players.map((p) => [p.playerId, {
+    const request = fetchPlayersPaged({ season, before: date })
+      .then((players) => new Map(players.map((p) => [p.playerId, {
         points: p.points, goals: p.goals, assists: p.assists, gamesPlayed: p.gamesPlayed,
       }])));
     awardTotalsCache.set(key, request);

@@ -217,10 +217,8 @@ const totalsBeforeCache = new Map(); // "season|date" -> Promise<Map<playerId, {
 function fetchTotalsBefore(season, date) {
   const key = `${season}|${date}`;
   if (!totalsBeforeCache.has(key)) {
-    const params = new URLSearchParams({ season, limit: -1, start: 0, sort: "player", dir: "ASC", before: date });
-    const request = fetch(`${API_BASE}/api/players?${params}`)
-      .then((r) => r.json())
-      .then(({ players }) => new Map(players.map((p) => [p.playerId, { points: p.points, gamesPlayed: p.gamesPlayed }])));
+    const request = fetchPlayersPaged({ season, before: date })
+      .then((players) => new Map(players.map((p) => [p.playerId, { points: p.points, gamesPlayed: p.gamesPlayed }])));
     totalsBeforeCache.set(key, request);
     request.catch(() => totalsBeforeCache.delete(key)); // a failure isn't remembered
   }

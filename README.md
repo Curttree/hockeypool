@@ -295,6 +295,15 @@ anything, so a few things keep the wait short:
 
 ## Architecture notes
 
+- **100-row cap**: the NHL's stats API answers at most 100 rows a request, 
+  whatever `limit` says (it used to honour `limit=-1`, and a roster cut to 
+  its first 100 names made every score wrong on 2026-11-19). The full roster 
+  is fetched a page at a time (`fetchPlayersPaged` in `common.js`, 
+  `.github/scripts/nhl-skaters.mjs` for the Actions scripts), ordered by name 
+  with the player id as the last tiebreak so pages never overlap, and a 
+  result that isn't the whole set is an error, not a partial roster. The 
+  Worker adds that id tiebreak to every query (redeploy `worker.js` to 
+  pick it up; the site works without it).
 - **Backend proxy**: `app.py` (local dev) and `worker.js` (deployed to
   Cloudflare Workers) both proxy the NHL's APIs, which send no CORS
   headers so the browser can't call them directly. Season stats
