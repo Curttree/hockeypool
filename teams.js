@@ -89,7 +89,8 @@ const TEAMS_BY_SEASON = {
         logo: "images/anmol.png",
         players: ["Nick Suzuki", "Kyle Connor", "Jake Guentzel", "Mitch Marner", "Jack Hughes", "Connor Bedard", "Gabriel Vilardi",
           "Kirill Marchenko", "Ivan Demidov", "Auston Matthews", "Zach Hyman", "Nazem Kadri", "Brayden Point", "Jake Neighbours",
-          "Zachary Bolduc", "Tyler Seguin", "Michael Brandsegg-Nygård", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos"
+          "Zachary Bolduc", "Tyler Seguin", "Michael Brandsegg-Nygård", "Rafael Harvey-Pinard", "Dylan Duke", "Carson Lambos",
+          "Cutter Gauthier"
         ]
     },
     {
@@ -193,6 +194,14 @@ const TEAMS_BY_SEASON = {
         date: "2026-11-14",
         playerOut: { name: "Dominik Shine", points: 0, goals: 0, assists: 0 },
         playerIn: { name: "Declan Carlile", points: 6, goals: 3, assists: 3 },
+      },
+      // Anmol sends Connor Bedard out for Cutter Gauthier (season totals at
+      // the time of the trade, 2026-11-21).
+      {
+        team: "Anmol",
+        date: "2026-11-21",
+        playerOut: { name: "Connor Bedard", points: 18, goals: 7, assists: 11 },
+        playerIn: { name: "Cutter Gauthier", points: 29, goals: 21, assists: 8 },
       },
     ],
     tradeDeadline: "2027-03-01T15:00:00-05:00",
