@@ -761,6 +761,103 @@
           "games": 2
         }
       }
+    },
+    {
+      "week": 8,
+      "weekStart": "2026-11-15",
+      "weekEnd": "2026-11-21",
+      "awards": {
+        "teamOfWeek": {
+          "teams": [
+            "Rick"
+          ],
+          "points": 61,
+          "next": [
+            {
+              "team": "Curtis",
+              "points": 55
+            },
+            {
+              "team": "Jordan",
+              "points": 45
+            }
+          ]
+        },
+        "playerOfWeek": {
+          "winners": [
+            {
+              "player": "Robert Thomas",
+              "team": "Rick",
+              "id": 8480023
+            }
+          ],
+          "points": 9,
+          "goals": 2,
+          "assists": 7,
+          "next": [
+            {
+              "player": "Jake Neighbours",
+              "team": "Anmol",
+              "value": 9
+            },
+            {
+              "player": "Leon Draisaitl",
+              "team": "Curtis",
+              "value": 8
+            }
+          ]
+        },
+        "bargainBin": {
+          "winners": [
+            {
+              "player": "William Karlsson",
+              "team": "Curtis",
+              "id": 8476448
+            },
+            {
+              "player": "William Karlsson",
+              "team": "Hannah",
+              "id": 8476448
+            }
+          ],
+          "points": 4,
+          "cost": 7,
+          "next": [
+            {
+              "player": "Jake Neighbours",
+              "team": "Anmol",
+              "value": 9
+            },
+            {
+              "player": "Jonatan Berggren",
+              "team": "Luke",
+              "value": 4
+            }
+          ]
+        },
+        "capAnchor": {
+          "winners": [
+            {
+              "player": "Mikhail Sergachev",
+              "team": "Gayle",
+              "id": 8479410
+            }
+          ],
+          "points": 0,
+          "cost": 59,
+          "games": 3
+        },
+        "tradeOfWeek": {
+          "team": "Anmol",
+          "date": "2026-11-21",
+          "playerIn": "Cutter Gauthier",
+          "idIn": 8483445,
+          "playerOut": "Connor Bedard",
+          "idOut": 8484144,
+          "pointsIn": 1,
+          "pointsOut": 0
+        }
+      }
     }
   ]
 }
