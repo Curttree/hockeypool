@@ -98,7 +98,8 @@ const TEAMS_BY_SEASON = {
         logo: "images/jordan.png",
         players: ["Connor McDavid", "David Pastrnak", "Leon Draisaitl", "Connor Bedard", "Gabriel Vilardi", "Brock Nelson", "Bryan Rust",
           "Will Cuylle", "Travis Sanheim", "Dmitry Orlov", "K'Andre Miller", "Jack Roslovic", "Sean Monahan", "Brent Burns",
-          "Gabriel Landeskog", "Philip Broberg", "Berkly Catton", "Oskar Sundqvist", "Wyatt Kaiser", "Kirby Dach"
+          "Gabriel Landeskog", "Philip Broberg", "Berkly Catton", "Oskar Sundqvist", "Wyatt Kaiser", "Kirby Dach",
+          "Filip Forsberg", "Phillip Danault"
         ]
     },
     {
@@ -202,6 +203,23 @@ const TEAMS_BY_SEASON = {
         date: "2026-11-21",
         playerOut: { name: "Connor Bedard", points: 18, goals: 7, assists: 11 },
         playerIn: { name: "Cutter Gauthier", points: 29, goals: 21, assists: 8 },
+      },
+      // Jordan sends Connor Bedard out for Filip Forsberg (season totals at the
+      // time of the trade, 2026-11-24).
+      {
+        team: "Jordan",
+        date: "2026-11-24",
+        playerOut: { name: "Connor Bedard", points: 18, goals: 7, assists: 11 },
+        playerIn: { name: "Filip Forsberg", points: 25, goals: 9, assists: 16 },
+      },
+      // Jordan sends Oskar Sundqvist out for Phillip Danault (season totals at
+      // the time of the trade, 2026-11-24). Sundqvist hasn't played this
+      // season, so his line is empty.
+      {
+        team: "Jordan",
+        date: "2026-11-24",
+        playerOut: { name: "Oskar Sundqvist", points: 0, goals: 0, assists: 0 },
+        playerIn: { name: "Phillip Danault", points: 9, goals: 3, assists: 6 },
       },
     ],
     tradeDeadline: "2027-03-01T15:00:00-05:00",
