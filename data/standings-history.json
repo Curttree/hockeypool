@@ -1979,6 +1979,39 @@
           "score": 292
         }
       ]
+    },
+    {
+      "date": "2026-11-27",
+      "standings": [
+        {
+          "team": "Rick",
+          "score": 457
+        },
+        {
+          "team": "Curtis",
+          "score": 438
+        },
+        {
+          "team": "Hannah",
+          "score": 363
+        },
+        {
+          "team": "Jordan",
+          "score": 357
+        },
+        {
+          "team": "Anmol",
+          "score": 339
+        },
+        {
+          "team": "Gayle",
+          "score": 312
+        },
+        {
+          "team": "Luke",
+          "score": 301
+        }
+      ]
     }
   ]
 }
